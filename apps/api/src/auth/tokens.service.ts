@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { ACCESS_TOKEN_TTL_SEC, REFRESH_TOKEN_TTL_SEC, type AuthTokens } from "@bpredict/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { env } from "../config/env";
@@ -8,6 +8,8 @@ import { env } from "../config/env";
 export interface AccessPayload {
   sub: string;
   typ: "access";
+  /** Unique per token so two tokens issued in the same second never collide. */
+  jti: string;
 }
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -20,7 +22,7 @@ export class TokensService {
   ) {}
 
   async issue(userId: string, userAgent?: string): Promise<AuthTokens> {
-    const accessToken = await this.jwt.signAsync({ sub: userId, typ: "access" } satisfies AccessPayload, {
+    const accessToken = await this.jwt.signAsync({ sub: userId, typ: "access", jti: randomUUID() } satisfies AccessPayload, {
       secret: env.JWT_SECRET,
       expiresIn: ACCESS_TOKEN_TTL_SEC,
     });
