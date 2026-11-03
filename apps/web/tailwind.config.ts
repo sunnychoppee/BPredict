@@ -24,6 +24,10 @@ const config: Config = {
       backgroundImage: {
         vignette: "radial-gradient(ellipse at center, rgba(232,201,122,.10) 0%, rgba(0,0,0,0) 55%, rgba(0,0,0,.45) 100%)",
       },
+      keyframes: {
+        fadein: { from: { opacity: "0", transform: "translateY(-6px)" }, to: { opacity: "1", transform: "none" } },
+      },
+      animation: { fadein: "fadein .25s ease-out" },
     },
   },
   plugins: [],

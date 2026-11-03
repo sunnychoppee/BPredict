@@ -9,13 +9,15 @@ config();
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_ENV: z.enum(["local", "uat", "production"]).default("local"),
+  // Railway injects PORT; locally we use API_PORT.
+  PORT: z.coerce.number().int().positive().optional(),
   API_PORT: z.coerce.number().int().positive().default(3001),
   WEB_URL: z.string().url().default("http://localhost:3000"),
 
   JWT_SECRET: z.string().min(16),
   JWT_REFRESH_SECRET: z.string().min(16),
   DATABASE_URL: z.string().min(1),
-  REDIS_URL: z.string().optional(),
+  REDIS_URL: z.string().default("redis://localhost:6379"),
 
   TELEGRAM_BOT_TOKEN: z.string().optional(),
 
@@ -37,5 +39,5 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const env: Env = parsed.data;
+export const env: Env = { ...parsed.data, API_PORT: parsed.data.PORT ?? parsed.data.API_PORT };
 export const isLocal = env.APP_ENV === "local";

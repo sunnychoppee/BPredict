@@ -1,5 +1,6 @@
-// W1 scope: users, auth, ledger, economy params.
-// Rounds / bets / payments arrive in W2 / W4.
+// W1: users, auth, ledger, economy params.
+// W2: tables, rounds, bets, payouts, user stats.
+// W4: payments, products, subscriptions.
 
 generator client {
   provider = "prisma-client-js"
@@ -49,6 +50,9 @@ model User {
   refreshTokens RefreshToken[]
   balances      Balance[]
   ledgerEntries LedgerEntry[]
+  bets          Bet[]
+  payouts       RoundPayout[]
+  stats         UserStats?
 
   @@map("users")
 }
@@ -138,4 +142,115 @@ model EconomyParam {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("economy_params")
+}
+
+// ---------------------------------------------------------------------------
+// W2: round engine
+// ---------------------------------------------------------------------------
+
+enum RoundStatus {
+  SCHEDULED
+  BETTING
+  LOCKED
+  SETTLED
+  VOIDED
+}
+
+enum Side {
+  BANKER
+  PLAYER
+}
+
+model GameTable {
+  id           String   @id
+  symbol       String
+  roundSeconds Int      @default(300) @map("round_seconds")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  rounds Round[]
+
+  @@map("tables")
+}
+
+/// One 5-minute round. Timeline: bet_start_at → lock_at (price snapshot) → close_at (settle).
+model Round {
+  id            String      @id @default(uuid()) @db.Uuid
+  tableId       String      @map("table_id")
+  roundNo       BigInt      @map("round_no")
+  status        RoundStatus
+  betStartAt    DateTime    @map("bet_start_at")
+  lockAt        DateTime    @map("lock_at")
+  closeAt       DateTime    @map("close_at")
+  lockPrice     Decimal?    @map("lock_price") @db.Decimal(18, 2)
+  closePrice    Decimal?    @map("close_price") @db.Decimal(18, 2)
+  priceSource   String?     @map("price_source")
+  lockedAt      DateTime?   @map("locked_at")
+  settledAt     DateTime?   @map("settled_at")
+  poolBanker    BigInt      @default(0) @map("pool_banker")
+  poolPlayer    BigInt      @default(0) @map("pool_player")
+  fee           BigInt?
+  winner        Side?
+  payoutPerUnit Decimal?    @map("payout_per_unit") @db.Decimal(12, 6)
+  destroyed     BigInt?
+  voidReason    String?     @map("void_reason")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  table   GameTable     @relation(fields: [tableId], references: [id])
+  bets    Bet[]
+  payouts RoundPayout[]
+
+  @@unique([tableId, roundNo])
+  @@index([tableId, status])
+  @@index([tableId, closeAt(sort: Desc)])
+  @@map("rounds")
+}
+
+model Bet {
+  id             String    @id @default(uuid()) @db.Uuid
+  roundId        String    @map("round_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  side           Side
+  amount         BigInt
+  cancelledAt    DateTime? @map("cancelled_at")
+  idempotencyKey String    @unique @map("idempotency_key")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  round Round @relation(fields: [roundId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([roundId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("bets")
+}
+
+model RoundPayout {
+  roundId     String   @map("round_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  side        Side
+  stake       BigInt
+  payout      BigInt
+  streakBonus BigInt   @default(0) @map("streak_bonus")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  round Round @relation(fields: [roundId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@id([roundId, userId])
+  @@index([userId])
+  @@map("round_payouts")
+}
+
+model UserStats {
+  userId        String   @id @map("user_id") @db.Uuid
+  totalRounds   Int      @default(0) @map("total_rounds")
+  wins          Int      @default(0)
+  currentStreak Int      @default(0) @map("current_streak")
+  maxStreak     Int      @default(0) @map("max_streak")
+  netProfit     BigInt   @default(0) @map("net_profit")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_stats")
 }

@@ -1,6 +1,6 @@
 # 技术方案 v1：「庄闲 · BTC 涨跌预测游戏」
 
-> 版本：v1.3 · 日期：2026-11-01 · 对应产品文档：`PRD_v2.md`
+> 版本：v1.4 · 日期：2026-11-03 · 对应产品文档：`PRD_v2.md`（v1.4：补 §5.5 W2 实现备注、§9.7 Railway 部署方式）
 > 状态：UI / UAT / 第三方准备项已于 2026-11-01 确认
 
 ---
@@ -249,6 +249,15 @@ function settle(round, bets, params) {
 - 连胜加成从本局 `fee` 中支出、单局总加成不超过 `fee`，且单人封顶 20,000。
 - 结算后：写 `round_results`、更新 Redis 结果序列（`LPUSH table:{id}:results`, `LTRIM 0 499`）、排行榜 sorted set、`user_stats` 连胜计数，发布 `round.settled` 与各用户 `user.payout`。
 
+### 5.5 实现备注（W2 as-built，2026-11-03）
+
+- 代码位置：`apps/worker/src/engine.ts`（调度 + 锁盘 + 结算 + VOID）、`apps/worker/src/price-feed.ts`（三源行情）、`packages/shared/src/settlement.ts`（纯函数 + 单测）。
+- 与 §5.2 的差异：不提前 10 秒创建，而是每 tick `upsert` 当前局与下一局（幂等，重启后自动补建）；下注期结束时把 Redis 实时彩池快照进 `rounds.pool_*`，结算时以数据库 `bets` 重算为准。
+- 与 §5.3 的差异：三路 WS **常连**，不是故障时才连；切换只改「当前取数源」，因此切换零延迟。Bybit 用 `publicTrade.BTCUSDT`，OKX 用 `trades BTC-USDT`。
+- 行情中断 > 60 秒时停止开新局（已开的局按 60 秒宽限 → VOID 退款处理）。
+- `round_results` 表未单建，结果直接读 `rounds`（`status in (SETTLED, VOIDED)`）；排行榜 sorted set 留到 W5 排行页一起做。
+- 实测：本地跑通 `LOCKED @ 77073.33 → SETTLED PLAYER @ 77036.01`，`ppu = 1.225`，赢家 3000 → 3675，Σledger = balance 对所有用户成立。
+
 ---
 
 ## 6. 实时网关（WS）
@@ -409,6 +418,7 @@ MVP 全部跑在 Railway 新加坡区。需要扩容时：`api` / `ws` 直接加
 - **支付**：W1–W3 用后台「补币」测玩法；**W4** 接 Stripe test、NOWPayments sandbox、Telegram Stars。UAT 禁止打生产收款密钥。
 - **Telegram**：单独 UAT Bot（如 `@xxx_uat_bot`），Mini App URL 指向 UAT `web`。生产 Bot 另建，禁止共用 Token。
 - **OAuth / 邮件回调白名单**须同时包含 `http://localhost:3000` 与 UAT `web` URL。
+- **部署方式（W2 起）**：同一仓库建 4 个 Railway 服务，各自指向 `railway/{api,ws,web,worker}.json` 的 config-as-code（Nixpacks、`pnpm turbo run build --filter=<pkg>...`、健康检查路径）；Node 版本由根目录 `.node-version` 固定为 22。变量清单与步骤见 `README.md`「UAT 部署」。
 
 ### 9.8 第三方账号（W1 起由你开通，密钥只放 Railway Variables / 本地 `.env`，不入库）
 

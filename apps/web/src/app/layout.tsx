@@ -19,7 +19,7 @@ const isUat = process.env.NEXT_PUBLIC_APP_ENV === "uat";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-Hant">
+    <html lang="zh-Hant" suppressHydrationWarning>
       <head>
         <Script src="https://telegram.org/js/telegram-web-app.js?57" strategy="beforeInteractive" />
       </head>
