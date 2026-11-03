@@ -1,0 +1,141 @@
+// W1 scope: users, auth, ledger, economy params.
+// Rounds / bets / payments arrive in W2 / W4.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  COINS
+  GEMS
+}
+
+enum AuthProvider {
+  TELEGRAM
+  GOOGLE
+  EMAIL
+}
+
+enum LedgerType {
+  WELCOME
+  DAILY_CHECKIN
+  TIMED_SUPPLY
+  RELIEF
+  REFERRAL
+  BET
+  BET_CANCEL
+  PAYOUT
+  REFUND
+  PURCHASE
+  ADMIN_ADJUST
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  nickname  String
+  avatarUrl String?   @map("avatar_url")
+  locale    String    @default("zh-Hant")
+  isVip     Boolean   @default(false) @map("is_vip")
+  frozenAt  DateTime? @map("frozen_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  identities    AuthIdentity[]
+  refreshTokens RefreshToken[]
+  balances      Balance[]
+  ledgerEntries LedgerEntry[]
+
+  @@map("users")
+}
+
+model AuthIdentity {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  provider    AuthProvider
+  providerUid String       @map("provider_uid")
+  email       String?
+  meta        Json?
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUid])
+  @@index([userId])
+  @@index([email])
+  @@map("auth_identities")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model MagicLink {
+  id         String    @id @default(uuid()) @db.Uuid
+  email      String
+  tokenHash  String    @unique @map("token_hash")
+  expiresAt  DateTime  @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("magic_links")
+}
+
+/// Cached balance. Invariant: amount == SUM(ledger_entries.amount) for (user, currency).
+model Balance {
+  userId    String   @map("user_id") @db.Uuid
+  currency  Currency
+  amount    BigInt   @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, currency])
+  @@map("balances")
+}
+
+/// Append-only. Every coin / gem movement goes through here. Never update or delete rows.
+model LedgerEntry {
+  id             BigInt     @id @default(autoincrement())
+  userId         String     @map("user_id") @db.Uuid
+  currency       Currency
+  amount         BigInt
+  type           LedgerType
+  refType        String?    @map("ref_type")
+  refId          String?    @map("ref_id")
+  balanceAfter   BigInt     @map("balance_after")
+  idempotencyKey String     @unique @map("idempotency_key")
+  meta           Json?
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([refType, refId])
+  @@map("ledger_entries")
+}
+
+/// Hot-reloadable economy parameters. Key names follow TECH_DESIGN.md §13.1.
+model EconomyParam {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("economy_params")
+}

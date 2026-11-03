@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+.turbo
+dist
+.next
+coverage
+*.log
+.env
+.env.local
+.env.*.local
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json
+apps/admin/.adminjs
+*.tsbuildinfo

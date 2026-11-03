@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --felt: #0b3d2e;
+  --felt-dark: #071f18;
+  --gold: #c9a24d;
+  --gold-bright: #e8c97a;
+  --banker: #b3252d;
+  --player: #1f4e9a;
+  --cream: #f4e8c1;
+  --void: #8a8a8a;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--felt-dark);
+  color: var(--cream);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.felt-surface {
+  background-color: var(--felt);
+  background-image:
+    radial-gradient(ellipse at 50% 30%, rgba(232, 201, 122, 0.12) 0%, rgba(0, 0, 0, 0) 55%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.015) 0 2px, rgba(0, 0, 0, 0.015) 2px 4px);
+}
+
+.gold-frame {
+  border: 1px solid var(--gold);
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 201, 122, 0.25),
+    0 0 18px rgba(201, 162, 77, 0.18);
+}
+
+.num {
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.btn-gold {
+  @apply rounded-md bg-gold px-4 py-2 font-semibold text-felt-dark transition hover:bg-gold-bright active:translate-y-px disabled:opacity-50;
+}
+
+.btn-outline {
+  @apply rounded-md border border-gold/70 px-4 py-2 font-medium text-cream transition hover:border-gold-bright hover:text-gold-bright active:translate-y-px disabled:opacity-50;
+}
+
+.input {
+  @apply w-full rounded-md border border-gold/40 bg-felt-dark/70 px-3 py-2 text-cream placeholder:text-cream/40 focus:border-gold focus:outline-none;
+}
+
+.test-watermark::after {
+  content: "TEST";
+  position: fixed;
+  right: 10px;
+  bottom: calc(10px + var(--safe-bottom));
+  font: 700 11px/1 system-ui;
+  letter-spacing: 0.2em;
+  color: rgba(232, 201, 122, 0.45);
+  border: 1px solid rgba(232, 201, 122, 0.45);
+  padding: 4px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 50;
+}

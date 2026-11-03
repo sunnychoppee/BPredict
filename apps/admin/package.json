@@ -1,0 +1,9 @@
+{
+  "name": "@bpredict/admin",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo \"admin: AdminJS lands in W5\"",
+    "typecheck": "echo skip"
+  }
+}
