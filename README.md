@@ -41,7 +41,7 @@ apps/web      Next.js 15 — 網頁 + Telegram Mini App 同一套
 apps/api      NestJS — 鑑權、帳本、商店、支付回調
 apps/worker   局調度 / 行情 / 結算
 apps/ws       WebSocket 網關
-railway/      Railway 各服務的 config-as-code（build / start / healthcheck）
+.railway/     Railway IaC（railway.ts 描述整個 UAT 環境）
 apps/admin    AdminJS 後台（W5）
 packages/shared  型別、zod、常量、經濟參數預設值
 packages/db      Prisma schema、遷移、seed
@@ -86,44 +86,52 @@ from users u join balances b on b.user_id=u.id and b.currency='COINS';
 
 ## UAT 部署（Railway，新加坡）
 
-Railway 一個 Project、Environment `uat`，從同一個 GitHub 倉庫建立 **4 個服務 + 2 個外掛**。每個服務 Root Directory 都留空（倉庫根），只是 Config-as-code 路徑不同。
+Railway Project `bpredict`、Environment `uat`，整個環境由 **`.railway/railway.ts`（Infrastructure as Code）** 描述：Postgres、Redis、`api` / `ws` / `worker` / `web` 四個 GitHub 服務、build / start / pre-deploy / healthcheck、區域 `sin`、非機密變數。Railway 舊的 `railway.json` config-as-code 已廢棄，新服務不會讀取。
 
-| 服務 | Settings → Config-as-code | 公網 | 備註 |
+| 服務 | 公網 | UAT URL | 備註 |
 | :--- | :--- | :--- | :--- |
-| `api` | `railway/api.json` | 是（Generate Domain） | 啟動時先 `prisma migrate deploy` + seed |
-| `ws` | `railway/ws.json` | 是 | 瀏覽器用 `wss://` 連 |
-| `web` | `railway/web.json` | 是 | 這個網址填到 BotFather 的 Mini App |
-| `worker` | `railway/worker.json` | 否 | **只能 1 個副本**（有 leader 鎖保護，但沒必要多開） |
-| Postgres | 外掛 | 否 | 服務內用 `${{Postgres.DATABASE_URL}}` 引用 |
-| Redis | 外掛 | 否 | `${{Redis.REDIS_URL}}` |
+| `api` | 是 | `https://api-uat-123a.up.railway.app` | pre-deploy：`pnpm db:deploy && pnpm db:seed` |
+| `ws` | 是 | `wss://ws-uat.up.railway.app` | `/health` |
+| `web` | 是 | `https://web-uat-3b0f.up.railway.app` | 這個網址填到 BotFather 的 Mini App |
+| `worker` | 否 | — | **只能 1 個副本**（leader 鎖只是保險） |
+| Postgres / Redis | 否 | — | 服務內以 `${{Postgres.DATABASE_URL}}`、`${{Redis.REDIS_URL}}` 引用 |
 
-### 變數
+### 日常操作
 
-建議在 Project 層建 **Shared Variables**，各服務再引用：
+```bash
+npm i -g @railway/cli && railway login     # 一次
+railway link --project bpredict            # 在倉庫根執行，選 uat
+railway config plan                        # 比對 .railway/railway.ts 與 Railway 現況
+railway config apply                       # 套用（會再顯示一次 diff 要你確認）
+railway logs --service worker -d           # 運行日誌；-b 看 build 日誌
+railway deployment list --service api
+railway deployment redeploy --service api --yes
+```
 
-| 變數 | 值 | 用在 |
+Windows 上 `railway config plan/apply` 若報「TypeScript SDK requires CLI ≥ 5.42」，是 SDK 用 `execFileSync("railway")` 找不到 `.cmd` 墊片；先 `$env:_ = "$env:APPDATA\npm\node_modules\@railway\cli\bin\railway.exe"` 再用 `& $env:_ config plan` 即可。
+
+### 機密變數（不進 git）
+
+`.railway/railway.ts` 內對機密用 `preserve()`，值只存在 Railway：
+
+| 變數 | 服務 | 來源 |
 | :--- | :--- | :--- |
-| `NODE_ENV` | `production` | 全部 |
-| `APP_ENV` | `uat` | 全部（web 會打 TEST 水印、關閉 `/auth/dev`） |
-| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | api、worker |
-| `REDIS_URL` | `${{Redis.REDIS_URL}}` | api、worker、ws |
-| `JWT_SECRET` / `JWT_REFRESH_SECRET` | 各 32+ 位隨機字串（與本機不同） | api、ws（ws 只要 `JWT_SECRET`） |
-| `WEB_URL` | `https://<web 網域>` | api（CORS、OAuth 回跳） |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | 同本機 | api |
-| `GOOGLE_CALLBACK_URL` | `https://<api 網域>/auth/google/callback` | api；**同時加進 Google Console 的已授權重新導向 URI** |
-| `TELEGRAM_BOT_TOKEN` | `@BacPredict_bot` 的 token | api |
-| `RESEND_API_KEY` / `RESEND_FROM` | 同本機 | api |
-| `NEXT_PUBLIC_APP_ENV` | `uat` | web（build 時） |
-| `NEXT_PUBLIC_API_URL` | `https://<api 網域>` | web |
-| `NEXT_PUBLIC_WS_URL` | `wss://<ws 網域>` | web |
-| `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` | `BacPredict_bot` | web |
-| `WORKER_SCHEDULER` | `1` | worker |
+| `JWT_SECRET` | api、**ws（兩邊必須相同）** | 隨機 48 字元，與本機不同 |
+| `JWT_REFRESH_SECRET` | api | 隨機 48 字元 |
+| `TELEGRAM_BOT_TOKEN` | api | `@BacPredict_bot` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | api | Google Console（已加 `https://api-uat-123a.up.railway.app/auth/google/callback` 到重新導向 URI 才能用 Google 登入） |
+| `RESEND_API_KEY` | api | Resend |
 
-`PORT` 由 Railway 自動注入，api / ws / web 都會優先使用它。先部 Postgres、Redis、api、ws 拿到網域，再填 `NEXT_PUBLIC_*` 部 web。
+設定方式用**參數形式**：`railway variable set "KEY=value" --service api --skip-deploys`。**不要**在 Windows PowerShell 用 `--stdin`，它會在值前面塞一個 BOM（U+FEFF），Resend / JWT 會因此壞掉。
 
-### 部署後
+### 已踩過的坑
 
-1. `https://<api>/health` 回 `ok`；`https://<ws>/health` 回 `{"status":"ok"}`；worker 日誌出現 `acquired leadership`。
-2. BotFather → `@BacPredict_bot` → Bot Settings → Menu Button / Mini App URL = `https://<web>`。
-3. 瀏覽器開 `https://<web>` 看到 TEST 水印；Telegram 內開 bot 自動登入。
-4. 之後每次 push `main`，Railway 自動重新部署 4 個服務（可在 Settings 關掉 worker 以外服務的自動部署，改手動 Deploy）。
+- **Turbo 快取吃掉 Prisma Client**：`prisma generate` 的輸出在 `node_modules/.prisma`，不在 turbo `outputs` 裡；Railway 第二次 build 快取命中 `db#build` 後 runtime 就沒有 client。已改成 `generate` 任務 `cache: false` 且 `db#build` 依賴它。
+- 其他 `PORT` 由 Railway 注入，api / ws / web 都優先使用。
+
+### 部署後檢查
+
+1. `https://api-uat-123a.up.railway.app/health` 回 `ok`；`https://ws-uat.up.railway.app/health` 回 `{"status":"ok"}`；`railway logs --service worker -d` 看到 `acquired leadership` 與整點 `LOCKED` / `SETTLED`。
+2. BotFather → `@BacPredict_bot` → Bot Settings → Menu Button / Mini App URL = `https://web-uat-3b0f.up.railway.app`。
+3. 瀏覽器開 web 看到 TEST 水印；Telegram 內開 bot 自動登入。
+4. 每次 push `main`，Railway 自動重新部署 4 個服務。

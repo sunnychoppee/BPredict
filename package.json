@@ -16,6 +16,7 @@
     "db:seed": "pnpm --filter @bpredict/db seed"
   },
   "devDependencies": {
+    "railway": "^3.16.0",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"
   }

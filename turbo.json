@@ -10,6 +10,13 @@
     "generate": {
       "cache": false
     },
+    "@bpredict/db#build": {
+      "dependsOn": ["generate", "^build"],
+      "outputs": ["dist/**"]
+    },
+    "@bpredict/db#typecheck": {
+      "dependsOn": ["generate", "^build"]
+    },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,

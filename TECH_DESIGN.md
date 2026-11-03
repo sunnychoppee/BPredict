@@ -418,7 +418,7 @@ MVP 全部跑在 Railway 新加坡区。需要扩容时：`api` / `ws` 直接加
 - **支付**：W1–W3 用后台「补币」测玩法；**W4** 接 Stripe test、NOWPayments sandbox、Telegram Stars。UAT 禁止打生产收款密钥。
 - **Telegram**：单独 UAT Bot（如 `@xxx_uat_bot`），Mini App URL 指向 UAT `web`。生产 Bot 另建，禁止共用 Token。
 - **OAuth / 邮件回调白名单**须同时包含 `http://localhost:3000` 与 UAT `web` URL。
-- **部署方式（W2 起）**：同一仓库建 4 个 Railway 服务，各自指向 `railway/{api,ws,web,worker}.json` 的 config-as-code（Nixpacks、`pnpm turbo run build --filter=<pkg>...`、健康检查路径）；Node 版本由根目录 `.node-version` 固定为 22。变量清单与步骤见 `README.md`「UAT 部署」。
+- **部署方式（W2 起）**：同一仓库建 4 个 Railway 服务，由 `.railway/railway.ts`（Railway IaC）统一描述（Railpack、`pnpm turbo run build --filter=<pkg>...`、pre-deploy 迁移、健康检查、区域 `sin`）；`railway config plan/apply` 套用；Node 版本由根目录 `.node-version` 固定为 22。变量清单与步骤见 `README.md`「UAT 部署」。
 
 ### 9.8 第三方账号（W1 起由你开通，密钥只放 Railway Variables / 本地 `.env`，不入库）
 
