@@ -143,4 +143,4 @@ Windows 上 `railway config plan/apply` 若報「TypeScript SDK requires CLI ≥
 1. `https://api-uat-123a.up.railway.app/health` 回 `ok`；`https://ws-uat.up.railway.app/health` 回 `{"status":"ok"}`；`railway logs --service worker -d` 看到 `acquired leadership` 與整點 `LOCKED` / `SETTLED`。
 2. BotFather → `@BacPredict_bot` → Bot Settings → Menu Button / Mini App URL = `https://web-uat-3b0f.up.railway.app`。
 3. 瀏覽器開 web 看到 TEST 水印；Telegram 內開 bot 自動登入。
-4. 每次 push `main`，Railway 自動重新部署 4 個服務。
+4. 每次 push `main`，Railway 自動重新部署 4 個服務。**前提**：Railway 的 GitHub App 必須對 `sunnychoppee/BPredict` 有存取權（Railway → Account → GitHub「Configure repo access」→ 勾選此 repo）。若服務 Settings → Source 顯示「Auto deploy unavailable / Could not load branches」，代表 App 尚未授權，push 不會觸發；此時可手動觸發：`railway service source connect --repo sunnychoppee/BPredict --branch main --service <svc>`（會立刻用 main 最新 commit 建置一次）。
