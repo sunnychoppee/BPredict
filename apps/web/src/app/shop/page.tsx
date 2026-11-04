@@ -102,7 +102,9 @@ function ShopView() {
   const coinPacks = shop.products.filter((p) => p.type === "COINS");
   const gemPacks = shop.products.filter((p) => p.type === "GEMS");
   const vip = shop.products.find((p) => p.type === "VIP");
-  const enabledChannels = shop.channels.filter((c) => c.enabled && (c.id !== "TELEGRAM_STARS" || inTelegram));
+  // Telegram policy: digital goods bought inside a Mini App must be paid with Stars, so in Telegram we
+  // offer only Stars (+ the non-production test channel); on the web we hide Stars (openInvoice is unavailable).
+  const enabledChannels = shop.channels.filter((c) => c.enabled && (inTelegram ? c.id === "TELEGRAM_STARS" || c.id === "DEV" : c.id !== "TELEGRAM_STARS"));
 
   return (
     <div className="flex flex-col gap-3">
