@@ -34,6 +34,8 @@ pnpm db:generate            # 重新生成 Prisma Client
 pnpm --filter @bpredict/db studio   # Prisma Studio 看資料
 ```
 
+若本機的 Windows「應用程式控制」政策擋掉 `turbo.exe`（報 `spawn UNKNOWN` / `An Application Control policy has blocked this file`），改用不經 turbo 的等價指令：`pnpm -r --workspace-concurrency=1 typecheck`、`pnpm --filter <pkg> build`。Railway 上的 Linux build 不受影響。
+
 ## 目錄
 
 ```
@@ -67,15 +69,22 @@ packages/ui      設計系統組件（W3）
   - 行情斷線超過 60 s 不再開新局；worker 重啟後自動補建當前局並接續。
 - **下注 API**（需登入）：`POST /rounds/:id/bets {side, amount, nonce}`（冪等鍵 `bet:{round}:{user}:{nonce}`）、`DELETE /rounds/:id/bets`（下注期內整局取消退款）、`GET /rounds/:id/bets/me`、`GET /tables/btc-updown/state`、`GET /tables/btc-updown/rounds`。
 - **WS**（`apps/ws`）：`ws://host/?table=btc-updown&token=<access>`，連上先收 `hello` + `snapshot`，之後 `round.state` / `pool.update`（250 ms 合併）/ `price.tick` / `round.locked` / `round.settled`；帶 token 另收 `user.balance` / `user.payout`。
-- **牌桌頁** `/`：即時價、倒數（以伺服器時間校正）、雙局狀態、賠率與彩池、籌碼下注 / 取消、珠盤路。W3 再做完整視覺。
-
 ### 本機驗證一局
 
 ```bash
 pnpm dev                       # 等 worker 印出 acquired leadership
 # /login 底部用暱稱進入 → 選籌碼 → 點 莊/閒
-# 整點 :00/:05/:10… 鎖定，再 5 分鐘結算；右側路紙會出現珠子，頂部有輸贏提示
+# 整點 :00/:05/:10… 鎖定，再 5 分鐘結算；路紙會出現新格子，牌桌中央彈出結果橫幅
 ```
+
+## 牌桌 UI 與設計系統（W3 已完成）
+
+- **`packages/ui`**：籌碼（`Chip`/`ChipStack`）、金色按鈕與面板、倒數環、拔河條、大路 / 珠盤 / 統計、走勢圖（lightweight-charts）、WebAudio 音效。以原始碼形式被 `apps/web` 引用（`transpilePackages`），不需另外 build。
+- **頁面**：手機底部五頁籤 **牌桌 `/` · 獎勵 `/rewards` · 商店 `/shop` · 排行 `/leaderboard` · 我的 `/me`**；PC 改為頂部導航 + 右側常駐路紙。獎勵 / 商店 / 排行目前是 W4/W5 佔位頁。
+- **牌桌**：即時價 + 鎖盤價基準線走勢圖、倒數環（最後 10 秒變紅）、彩池拔河條與即時賠率、點莊/閒下注（籌碼飛入動畫）、`重複` / `加倍` / `撤銷`、結算橫幅與贏家金光、輸贏 toast、音效開關（右上角）。
+- **我的**：頭像暱稱、金幣 / 寶石、戰績（`GET /me/stats`）、金幣流水（`GET /me/ledger` 分頁）、登出。
+- **新 API**：`GET /economy`（公開經濟參數，前端用來顯示限額 / 籌碼 / 賠率）、`GET /me/stats`。
+- **走勢圖資料**：worker 每秒把 tick 寫進 Redis `price:BTCUSDT:ticks`（600 筆），WS / REST `snapshot` 都帶 `ticks`，重新整理不會空白。
 
 SQL 不變量（任何時刻都應成立）：
 
