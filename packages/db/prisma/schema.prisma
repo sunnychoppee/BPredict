@@ -33,6 +33,7 @@ enum LedgerType {
   PAYOUT
   REFUND
   PURCHASE
+  VIP_DAILY
   ADMIN_ADJUST
 }
 
@@ -42,6 +43,7 @@ model User {
   avatarUrl String?   @map("avatar_url")
   locale    String    @default("zh-Hant")
   isVip     Boolean   @default(false) @map("is_vip")
+  vipExpiresAt DateTime? @map("vip_expires_at")
   frozenAt  DateTime? @map("frozen_at")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -53,6 +55,8 @@ model User {
   bets          Bet[]
   payouts       RoundPayout[]
   stats         UserStats?
+  rewards       UserRewards?
+  payments      Payment[]
 
   @@map("users")
 }
@@ -253,4 +257,101 @@ model UserStats {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_stats")
+}
+
+// ---------------------------------------------------------------------------
+// W4: free rewards, shop, payments
+// ---------------------------------------------------------------------------
+
+/// Per-user reward bookkeeping. Dates are calendar days in UTC+8 ("YYYY-MM-DD").
+model UserRewards {
+  userId          String    @id @map("user_id") @db.Uuid
+  /// Consecutive check-in days already claimed (0–7). Resets when a day is skipped.
+  checkinStreak   Int       @default(0) @map("checkin_streak")
+  lastCheckinDay  String?   @map("last_checkin_day")
+  /// Energy-style regen anchor: charges = min(max, floor((now − anchor) / interval)).
+  supplyAnchorAt  DateTime  @default(now()) @map("supply_anchor_at")
+  lastReliefDay   String?   @map("last_relief_day")
+  lastVipDailyDay String?   @map("last_vip_daily_day")
+  firstChargeAt   DateTime? @map("first_charge_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_rewards")
+}
+
+enum ProductType {
+  COINS
+  GEMS
+  VIP
+}
+
+/// Shop catalogue. Prices in USDT; Stars price stored explicitly (Telegram requires integers).
+model Product {
+  id         String      @id
+  type       ProductType
+  name       String
+  priceUsdt  Decimal     @map("price_usdt") @db.Decimal(10, 2)
+  priceStars Int         @map("price_stars")
+  coins      BigInt      @default(0)
+  gems       Int         @default(0)
+  bonusPct   Int         @default(0) @map("bonus_pct")
+  vipDays    Int         @default(0) @map("vip_days")
+  sortOrder  Int         @default(0) @map("sort_order")
+  enabled    Boolean     @default(true)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  payments Payment[]
+
+  @@map("products")
+}
+
+enum PaymentProvider {
+  NOWPAYMENTS
+  STRIPE
+  TELEGRAM_STARS
+  /// Non-production only: instant success for testing the crediting flow.
+  DEV
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  EXPIRED
+  FAILED
+  REFUNDED
+}
+
+/// One purchase attempt. Crediting is idempotent on (provider, provider_order_id).
+model Payment {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @map("user_id") @db.Uuid
+  productId       String          @map("product_id")
+  provider        PaymentProvider
+  providerOrderId String?         @map("provider_order_id")
+  status          PaymentStatus   @default(PENDING)
+  priceUsdt       Decimal         @map("price_usdt") @db.Decimal(10, 2)
+  paidAmount      Decimal?        @map("paid_amount") @db.Decimal(18, 6)
+  asset           String?
+  chain           String?
+  txHash          String?         @map("tx_hash")
+  creditedCoins   BigInt          @default(0) @map("credited_coins")
+  creditedGems    Int             @default(0) @map("credited_gems")
+  firstCharge     Boolean         @default(false) @map("first_charge")
+  payUrl          String?         @map("pay_url")
+  meta            Json?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  paidAt          DateTime?       @map("paid_at")
+  expiresAt       DateTime?       @map("expires_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([provider, providerOrderId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("payments")
 }

@@ -34,6 +34,7 @@ interface TableState {
   ticks: PriceTick[];
   results: RoundResult[];
   coins: number | null;
+  gems: number | null;
   economy: EconomyPublic | null;
   myBets: MyBet[];
   /** Stakes of the last round I bet on (for 重複). */
@@ -48,6 +49,7 @@ interface TableState {
   pushToast(kind: Toast["kind"], text: string): void;
   dismissToast(id: number): void;
   setCoins(n: number | null): void;
+  setGems(n: number | null): void;
   loadEconomy(): Promise<void>;
   refreshMyBets(): Promise<void>;
   clearSettled(): void;
@@ -69,6 +71,7 @@ export const useTable = create<TableState>()((set, get) => ({
   ticks: [],
   results: [],
   coins: null,
+  gems: null,
   economy: null,
   myBets: [],
   lastRoundBets: [],
@@ -78,6 +81,7 @@ export const useTable = create<TableState>()((set, get) => ({
 
   now: () => Date.now() + get().serverOffset,
   setCoins: (n) => set({ coins: n }),
+  setGems: (n) => set({ gems: n }),
   clearSettled: () => set({ settled: null }),
   pushToast: (kind, text) => {
     const id = toastSeq++;
@@ -202,6 +206,7 @@ export const useTable = create<TableState>()((set, get) => ({
         }
         case "user.balance":
           if (ev.currency === "COINS") set({ coins: ev.amount });
+          else if (ev.currency === "GEMS") set({ gems: ev.amount });
           break;
         case "user.payout": {
           set({ lastPayout: ev });

@@ -11,7 +11,8 @@ import { AppModule } from "./app.module";
 };
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // rawBody: payment webhooks (Stripe / NOWPayments / Telegram) verify signatures over the exact bytes.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   app.use(cookieParser());
   app.enableCors({ origin: env.WEB_URL, credentials: true });
   app.enableShutdownHooks();

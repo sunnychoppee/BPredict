@@ -5,5 +5,7 @@ export * from "./economy";
 export * from "./rounds";
 export * from "./settlement";
 export * from "./ws";
+export * from "./rewards";
+export * from "./shop";
 export * from "./schemas/auth";
 export * from "./schemas/bets";

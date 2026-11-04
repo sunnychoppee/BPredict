@@ -1,6 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import type Redis from "ioredis";
 import { postLedgerEntry, type Currency, type DbTx, type LedgerPostInput, type LedgerPostResult } from "@bpredict/db";
+import { userChannel, type ServerEvent } from "@bpredict/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { REDIS } from "../redis/redis.module";
 
 export { InsufficientFundsError } from "@bpredict/db";
 export type { LedgerPostInput as PostInput, LedgerPostResult as PostResult };
@@ -11,7 +14,23 @@ export type { LedgerPostInput as PostInput, LedgerPostResult as PostResult };
  */
 @Injectable()
 export class LedgerService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly log = new Logger(LedgerService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(REDIS) private readonly redis: Redis,
+  ) {}
+
+  /** Push the current balance to the user's live WS channel (best effort). */
+  async publishBalance(userId: string, currency: Currency, reason: string): Promise<void> {
+    try {
+      const amount = await this.balance(userId, currency);
+      const ev: ServerEvent = { t: "user.balance", currency, amount: Number(amount), reason };
+      await this.redis.publish(userChannel(userId, "balance"), JSON.stringify(ev));
+    } catch (e) {
+      this.log.warn(`balance publish failed: ${(e as Error).message}`);
+    }
+  }
 
   async post(input: LedgerPostInput): Promise<LedgerPostResult> {
     return this.prisma.$transaction((tx) => this.postIn(tx, input));

@@ -32,12 +32,17 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
   }, []);
 
   useEffect(() => {
-    if (me) t.setCoins(me.balances.find((b) => b.currency === "COINS")?.amount ?? 0);
-    else if (!loading) t.setCoins(null);
+    if (me) {
+      t.setCoins(me.balances.find((b) => b.currency === "COINS")?.amount ?? 0);
+      t.setGems(me.balances.find((b) => b.currency === "GEMS")?.amount ?? 0);
+    } else if (!loading) {
+      t.setCoins(null);
+      t.setGems(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me, loading]);
 
-  const gems = me?.balances.find((b) => b.currency === "GEMS")?.amount ?? 0;
+  const gems = t.gems ?? me?.balances.find((b) => b.currency === "GEMS")?.amount ?? 0;
   const delta = t.locked?.lockPrice != null && t.price ? t.price.price - t.locked.lockPrice : null;
 
   return (

@@ -9,6 +9,9 @@ export interface TelegramWebApp {
   setBackgroundColor(color: string): void;
   setBottomBarColor?(color: string): void;
   disableVerticalSwipes?(): void;
+  /** Opens a Bot API invoice link (Telegram Stars). */
+  openInvoice?(url: string, callback?: (status: "paid" | "cancelled" | "failed" | "pending") => void): void;
+  openLink?(url: string, options?: { try_instant_view?: boolean }): void;
 }
 
 declare global {

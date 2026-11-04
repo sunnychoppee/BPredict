@@ -14,6 +14,7 @@ export type LedgerType =
   | "PAYOUT"
   | "REFUND"
   | "PURCHASE"
+  | "VIP_DAILY"
   | "ADMIN_ADJUST";
 
 export interface AuthTokens {
@@ -28,6 +29,7 @@ export interface PublicUser {
   avatarUrl: string | null;
   locale: string;
   isVip: boolean;
+  vipExpiresAt: string | null;
   createdAt: string;
 }
 

@@ -22,6 +22,7 @@ const LEDGER_LABEL: Record<LedgerType, string> = {
   PAYOUT: "派彩",
   REFUND: "退還",
   PURCHASE: "購買",
+  VIP_DAILY: "VIP 每日金幣",
   ADMIN_ADJUST: "系統調整",
 };
 
@@ -105,7 +106,7 @@ function MeView() {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="truncate font-display text-xl text-gold-bright">{me.user.nickname}</span>
-              {me.user.isVip && <Pill>VIP</Pill>}
+              {me.user.isVip && <Pill>VIP{me.user.vipExpiresAt ? ` · 至 ${new Date(me.user.vipExpiresAt).toLocaleDateString("zh-TW")}` : ""}</Pill>}
             </div>
             <div className="mt-0.5 text-[11px] text-cream/55">
               {me.identities.map((i) => `${PROVIDER_LABEL[i.provider]}${i.email ? ` · ${i.email}` : ""}`).join("、") || "—"}

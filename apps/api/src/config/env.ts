@@ -20,6 +20,20 @@ const schema = z.object({
   REDIS_URL: z.string().default("redis://localhost:6379"),
 
   TELEGRAM_BOT_TOKEN: z.string().optional(),
+  /** Secret token the Bot API echoes in `X-Telegram-Bot-Api-Secret-Token` on webhook calls (Stars payments). */
+  TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
+  /** Public base URL of this api (used to register the Telegram webhook). */
+  API_PUBLIC_URL: z.string().url().optional(),
+
+  // Payments — all optional; a channel is offered in the shop only when its keys are present.
+  NOWPAYMENTS_API_KEY: z.string().optional(),
+  NOWPAYMENTS_IPN_SECRET: z.string().optional(),
+  NOWPAYMENTS_SANDBOX: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -41,3 +55,16 @@ if (!parsed.success) {
 
 export const env: Env = { ...parsed.data, API_PORT: parsed.data.PORT ?? parsed.data.API_PORT };
 export const isLocal = env.APP_ENV === "local";
+export const isProduction = env.APP_ENV === "production";
+
+// Guard rail: UAT / local must never carry live payment keys (TECH_DESIGN §11).
+if (!isProduction) {
+  if (env.STRIPE_SECRET_KEY?.startsWith("sk_live_")) {
+    console.error("Refusing to start: live Stripe key in a non-production environment");
+    process.exit(1);
+  }
+  if (env.NOWPAYMENTS_API_KEY && !env.NOWPAYMENTS_SANDBOX) {
+    console.error("Refusing to start: NOWPAYMENTS_SANDBOX must be true outside production");
+    process.exit(1);
+  }
+}
