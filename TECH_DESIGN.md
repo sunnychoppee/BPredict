@@ -1,6 +1,6 @@
 # 技术方案 v1：「庄闲 · BTC 涨跌预测游戏」
 
-> 版本：v1.5 · 日期：2026-11-04 · 对应产品文档：`PRD_v2.md`（v1.5：补 §3.5 W3 实现备注；v1.4：§5.5 W2 实现备注、§9.7 Railway 部署方式）
+> 版本：v1.6 · 日期：2026-11-04 · 对应产品文档：`PRD_v2.md`（v1.6：补 §7.4 W4 实现备注；v1.5：补 §3.5 W3 实现备注；v1.4：§5.5 W2 实现备注、§9.7 Railway 部署方式）
 > 状态：UI / UAT / 第三方准备项已于 2026-11-01 确认
 
 ---
@@ -307,6 +307,16 @@ Webhook 流程：验签 → 查 `payments` 订单 → 状态迁移（PENDING →
 
 `products` 表驱动：SKU、类型（coins / gems / vip / pass / skin）、各渠道价格、赠送比例、首充标记、上下架时间。后台热更，不发版。
 
+### 7.4 实现备注（W4 as-built，2026-11-04）
+
+- **模块**：`apps/api/src/rewards`（免费发放）与 `apps/api/src/shop`（商品、订单、渠道适配器、Webhook）。渠道实现 `PaymentProviderAdapter { enabled(); createCheckout(ctx) }`，位于 `shop/providers/*`；可用渠道由环境变量是否齐备决定，`GET /shop` 返回 `channels[].enabled` 供前端渲染。
+- **表**：`user_rewards`（签到连击 / 上次签到日 / 补给锚点 / 救济日 / VIP 日领日 / 首充时间）、`products`、`payments`（`(provider, provider_order_id)` 唯一；状态 `PENDING | PAID | PARTIALLY_PAID | EXPIRED | FAILED | REFUNDED`）、`users.vip_expires_at`；`LedgerType` 增加 `VIP_DAILY`。
+- **奖励规则**：日界线 UTC+8（`rewardDay()` in `@bpredict/shared`）。签到连击只在"昨天已签"时延续；补给为能量条模型（锚点 + 间隔，领取时锚点前移一格并钳制到 `now − maxStack × interval`，不会超额累积）；救济金 = 余额 < 500 且当日签到已领、补给已空。所有领取在事务内先以条件 `updateMany` 抢占（`count === 1`），再 `postLedgerEntry`，key 形如 `checkin:{user}:{day}` / `supply:{user}:{anchorTs}`。
+- **结算 `ShopService.settle()`**：事务内读订单 → 只处理 `PENDING` → 计算入账（`ratio` 1 = 全额，`partially_paid` 按 `actually_paid / pay_amount`；首充仅整额金币包、以 `user_rewards.first_charge_at IS NULL` 的条件更新抢占一次；VIP 从 `max(now, vip_expires_at)` 起加 30 天）→ 条件更新订单到终态 → 账本 `payment:{orderId}:coins|gems` → 事务外推送 `user.balance`。重放 / 并发回调仅入账一次（已用脚本验证 Stripe、NOWPayments finished / partially_paid、Stars 重放）。
+- **Webhook 验签**：Nest `rawBody: true`；Stripe 以 `t.rawBody` HMAC-SHA256、300 s 容忍；NOWPayments 以排序键 JSON 的 HMAC-SHA512；Telegram 以 `X-Telegram-Bot-Api-Secret-Token` 常量时间比较。验签失败 403，未配置渠道 503，业务映射异常不抛（记日志、回 200 以免服务商无限重试）。
+- **前端**：`/rewards` 7 格签到条 + 补给能量格倒计时 + VIP / 救济卡片；`/shop` 商品卡（首充时显示 ×2 对比价）、渠道选择 sheet（USDT 链、信用卡、Stars 仅 Telegram 内、测试支付仅非 production）、托管收银台以 `?order=<id>&result=` 回跳后轮询订单直至终态；购买记录列表。头部余额在非牌桌页无 WS，购买成功后主动拉 `/me/balances` 刷新。
+- **未做 / 后续**：`charge.dispute.created` 仅告警未冻结；赛季通行证、皮肤类商品未上架（W5+）；Bot `/start` 仅回一句欢迎语。
+
 ---
 
 ## 8. 数据模型（核心表）
@@ -440,11 +450,12 @@ MVP 全部跑在 Railway 新加坡区。需要扩容时：`api` / `ws` 直接加
 | Google Cloud OAuth | 网页登录 | Web 应用客户端 ID + Secret（已建，Testing 模式）；测试用户：`sean.zhang.yi@gmail.com`、`zhang.yi9999@gmail.com`、`seanzhclawd@gmail.com` |
 | Resend | 邮箱魔法链接 | API Key；UAT 可用 Resend 测试发件，生产再绑域名 |
 | Railway | W2 UAT | 账号 + 信用卡；Project 选新加坡区 |
-| NOWPayments | W4 | **Sandbox** API Key + IPN Secret |
-| Stripe | W4 | **Test** 模式 Publishable / Secret；Webhook 签名密钥 |
+| NOWPayments | W4 | **Sandbox** API Key + IPN Secret（`account-sandbox.nowpayments.io`；IPN URL `https://api-uat-123a.up.railway.app/webhooks/nowpayments`）；代码已就绪，待填入 Railway 变量 |
+| Stripe | W4 | **Test** 模式 Secret `sk_test_…` + Webhook 签名密钥（endpoint `https://api-uat-123a.up.railway.app/webhooks/stripe`）；代码已就绪，待填入 Railway 变量 |
+| Telegram Stars | W4 | 无需额外申请；Railway 设 `TELEGRAM_WEBHOOK_SECRET` 后 api 自动 `setWebhook`。Stars 测试需 BotFather 开 Test Server 或直接用少量真实 Stars |
 | Sentry | W2 起 | 组织 + `web` / `api` / `worker` 三个 DSN（可先一个项目） |
 
-不需要为 UAT 准备：Cloudflare、自定义域名、NOWPayments / Stripe **生产**密钥、Telegram Stars（W4 再开）。行情源 Binance / OKX / Bybit 公共 WS，无需申请账号。
+不需要为 UAT 准备：Cloudflare、自定义域名、NOWPayments / Stripe **生产**密钥。行情源 Binance / OKX / Bybit 公共 WS，无需申请账号。
 
 ---
 

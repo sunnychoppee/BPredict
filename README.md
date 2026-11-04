@@ -80,7 +80,7 @@ pnpm dev                       # 等 worker 印出 acquired leadership
 ## 牌桌 UI 與設計系統（W3 已完成）
 
 - **`packages/ui`**：籌碼（`Chip`/`ChipStack`）、金色按鈕與面板、倒數環、拔河條、大路 / 珠盤 / 統計、走勢圖（lightweight-charts）、WebAudio 音效。以原始碼形式被 `apps/web` 引用（`transpilePackages`），不需另外 build。
-- **頁面**：手機底部五頁籤 **牌桌 `/` · 獎勵 `/rewards` · 商店 `/shop` · 排行 `/leaderboard` · 我的 `/me`**；PC 改為頂部導航 + 右側常駐路紙。獎勵 / 商店 / 排行目前是 W4/W5 佔位頁。
+- **頁面**：手機底部五頁籤 **牌桌 `/` · 獎勵 `/rewards` · 商店 `/shop` · 排行 `/leaderboard` · 我的 `/me`**；PC 改為頂部導航 + 右側常駐路紙。排行目前是 W5 佔位頁。
 - **牌桌**：即時價 + 鎖盤價基準線走勢圖、倒數環（最後 10 秒變紅）、彩池拔河條與即時賠率、點莊/閒下注（籌碼飛入動畫）、`重複` / `加倍` / `撤銷`、結算橫幅與贏家金光、輸贏 toast、音效開關（右上角）。
 - **我的**：頭像暱稱、金幣 / 寶石、戰績（`GET /me/stats`）、金幣流水（`GET /me/ledger` 分頁）、登出。
 - **新 API**：`GET /economy`（公開經濟參數，前端用來顯示限額 / 籌碼 / 賠率）、`GET /me/stats`。
@@ -92,6 +92,22 @@ SQL 不變量（任何時刻都應成立）：
 select u.nickname, b.amount, (select sum(amount) from ledger_entries l where l.user_id=u.id and l.currency='COINS')
 from users u join balances b on b.user_id=u.id and b.currency='COINS';
 ```
+
+## 每日獎勵、商店與支付（W4 已完成）
+
+- **獎勵 `/rewards`**（`GET /rewards`、`POST /rewards/checkin|supply|relief|vip-daily`）：7 天簽到（斷簽歸零）、定時補給（每 4 h 一次、最多疊 2 次，能量條模型：`charges = floor((now − anchor) / interval)`）、救濟金（餘額 < 500 且簽到 / 補給都領完、每日一次）、VIP 每日金幣。每筆都是固定 idempotency key 的帳本紀錄（`checkin:{user}:{day}` 等），重複點擊不會多發；日界線為 **UTC+8**。
+- **商店 `/shop`**（`GET /shop`、`POST /shop/orders`、`GET /shop/orders[/:id]`）：商品由 `products` 表驅動（seed 自 `DEFAULT_ECONOMY`：5 檔金幣包、4 檔寶石、VIP 月卡 30 天；Stars 價 = ceil(USDT × 50)）。首充 ×2（限一次、僅整額金幣包）；VIP 購買把 `users.vip_expires_at` 往後加 30 天並設 `is_vip`。
+- **支付渠道**（`apps/api/src/shop/providers/*`，`PaymentProvider` 抽象）：
+
+  | 渠道 | 下單 | 回調 | 啟用條件（缺任一即不在商店顯示） |
+  | :--- | :--- | :--- | :--- |
+  | NOWPayments（USDT TRC20 / BEP20 / TON） | `POST /v1/invoice`，`order_id` = 我方訂單 id | `POST /webhooks/nowpayments`，`x-nowpayments-sig` = HMAC-SHA512(排序後 JSON)；`finished` 全額入帳、`partially_paid` 按比例入帳、`expired` 關單 | `NOWPAYMENTS_API_KEY` + `NOWPAYMENTS_IPN_SECRET` + `API_PUBLIC_URL`；非 production 強制 `NOWPAYMENTS_SANDBOX=true` |
+  | Stripe（Checkout） | REST 建 Checkout Session（不用 SDK） | `POST /webhooks/stripe`，`Stripe-Signature` 以 raw body 驗簽（300 s 容忍）；`checkout.session.completed` 入帳、`expired` 關單、`charge.dispute.created` 目前只記警告 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`；非 production 拒絕 `sk_live_` |
+  | Telegram Stars（僅 Mini App 內顯示） | Bot API `createInvoiceLink`（XTR），前端 `Telegram.WebApp.openInvoice` | `POST /webhooks/telegram`，`X-Telegram-Bot-Api-Secret-Token`；`pre_checkout_query` 核對訂單 / 價格後 `answerPreCheckoutQuery`，`successful_payment` 以 `telegram_payment_charge_id` 幂等入帳。api 啟動時自動 `setWebhook` | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_WEBHOOK_SECRET` + `API_PUBLIC_URL` |
+  | 測試支付（DEV） | 下單即入帳 | — | `APP_ENV !== production`（UAT / 本機用來驗證入帳流程） |
+
+- **入帳幂等**：`payments` 以 `(provider, provider_order_id)` 唯一；`ShopService.settle()` 用條件更新搶 `PENDING → 終態`，帳本 key `payment:{orderId}:coins|gems`。回調重放、兩個 webhook 同時到都只會入帳一次。
+- **本機驗證**：商店選「測試支付」買金幣包 → 首充 ×2 到帳、`/me` 流水出現 `PURCHASE`；買 VIP 後 `/rewards` 可領 VIP 每日金幣。`apps/api/src/shop/signatures.test.ts` 覆蓋三家驗簽。
 
 ## UAT 部署（Railway，新加坡）
 
@@ -130,6 +146,12 @@ Windows 上 `railway config plan/apply` 若報「TypeScript SDK requires CLI ≥
 | `TELEGRAM_BOT_TOKEN` | api | `@BacPredict_bot` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | api | Google Console（已加 `https://api-uat-123a.up.railway.app/auth/google/callback` 到重新導向 URI 才能用 Google 登入） |
 | `RESEND_API_KEY` | api | Resend |
+| `API_PUBLIC_URL` | api | `https://api-uat-123a.up.railway.app`（非機密，支付回調 / Telegram webhook 需要） |
+| `NOWPAYMENTS_API_KEY` / `NOWPAYMENTS_IPN_SECRET` | api | NOWPayments **Sandbox**（`account-sandbox.nowpayments.io`）；IPN URL 填 `<API_PUBLIC_URL>/webhooks/nowpayments` |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | api | Stripe **Test** 模式 `sk_test_…`；Webhook endpoint `<API_PUBLIC_URL>/webhooks/stripe`，事件 `checkout.session.completed`、`checkout.session.expired`、`charge.dispute.created` |
+| `TELEGRAM_WEBHOOK_SECRET` | api | 隨機 32+ 字元；api 啟動時會對 `@BacPredict_bot` `setWebhook` |
+
+沒設定的渠道在商店中不會出現；UAT 永遠只用 sandbox / test 金鑰，api 啟動時若在非 production 偵測到 `sk_live_` 或 `NOWPAYMENTS_SANDBOX=false` 會直接拒絕啟動。
 
 設定方式用**參數形式**：`railway variable set "KEY=value" --service api --skip-deploys`。**不要**在 Windows PowerShell 用 `--stdin`，它會在值前面塞一個 BOM（U+FEFF），Resend / JWT 會因此壞掉。
 

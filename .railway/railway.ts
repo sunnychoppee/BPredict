@@ -4,7 +4,8 @@ import { defineRailway, github, group, postgres, preserve, project, redis, servi
  * BPredict on Railway — one environment per `railway config apply`.
  *
  * Secrets (JWT_*, TELEGRAM_BOT_TOKEN, GOOGLE_*, RESEND_API_KEY) are set once with
- * `railway variable set <KEY> --stdin --service <svc>` and referenced here with preserve().
+ * `railway variable set "<KEY>=<value>" --service <svc> --skip-deploys` (never --stdin on Windows: BOM)
+ * and referenced here with preserve().
  * Public URLs are the Railway-generated domains; change them if you regenerate domains.
  */
 const REGION = "sin"; // Southeast Asia (Singapore)
@@ -45,14 +46,22 @@ export default defineRailway((ctx) => {
       DATABASE_URL: db.env.DATABASE_URL,
       REDIS_URL: cache.env.REDIS_URL,
       WEB_URL: urls.web,
+      API_PUBLIC_URL: urls.api,
       GOOGLE_CALLBACK_URL: `${urls.api}/auth/google/callback`,
       RESEND_FROM: "BPredict <onboarding@resend.dev>",
+      NOWPAYMENTS_SANDBOX: appEnv === "production" ? "false" : "true",
       JWT_SECRET: preserve(),
       JWT_REFRESH_SECRET: preserve(),
       TELEGRAM_BOT_TOKEN: preserve(),
       GOOGLE_CLIENT_ID: preserve(),
       GOOGLE_CLIENT_SECRET: preserve(),
       RESEND_API_KEY: preserve(),
+      // W4 payments — optional; a channel is offered only when its keys exist (sandbox / test only outside production).
+      TELEGRAM_WEBHOOK_SECRET: preserve(),
+      NOWPAYMENTS_API_KEY: preserve(),
+      NOWPAYMENTS_IPN_SECRET: preserve(),
+      STRIPE_SECRET_KEY: preserve(),
+      STRIPE_WEBHOOK_SECRET: preserve(),
     },
   });
 
