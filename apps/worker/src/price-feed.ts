@@ -4,6 +4,8 @@ import { PRICE_FAILBACK_MS, PRICE_STALE_MS, redisKeys, tableChannel, type Server
 import { log } from "./log";
 import { publish } from "./redis";
 
+const TICK_HISTORY = 600;
+
 interface SourceDef {
   name: string;
   url: string;
@@ -187,6 +189,15 @@ export class PriceFeed {
       await this.writeLatest(now, true);
       const ev: ServerEvent = { t: "price.tick", tableId: this.tableId, price: this.active.price!, source: this.active.def.name, ts: this.active.exchangeTs };
       await publish(this.redis, tableChannel(this.tableId, "price.tick"), ev);
+      // 1 s history for the chart (≈ 10 min)
+      try {
+        const k = redisKeys.priceTicks(this.symbol);
+        await this.redis.lpush(k, JSON.stringify({ price: ev.price, source: ev.source, ts: ev.ts }));
+        await this.redis.ltrim(k, 0, TICK_HISTORY - 1);
+        await this.redis.expire(k, 3600);
+      } catch {
+        /* non-critical */
+      }
     }
   }
 

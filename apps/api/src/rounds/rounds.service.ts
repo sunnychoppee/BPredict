@@ -40,14 +40,15 @@ export class RoundsService {
     const betting = live.find((r) => r.status === "BETTING") ?? null;
     const locked = live.find((r) => r.status === "LOCKED") ?? null;
 
-    const [bettingView, lockedView, price, results] = await Promise.all([
+    const [bettingView, lockedView, price, ticks, results] = await Promise.all([
       betting ? this.withLivePools(toRoundView(betting)) : null,
       locked ? toRoundView(locked) : null,
       this.latestPrice(table.symbol),
+      this.recentTicks(table.symbol, 600),
       this.recentResults(tableId, 100),
     ]);
 
-    return { tableId, serverTime: Date.now(), betting: bettingView, locked: lockedView, price, results };
+    return { tableId, serverTime: Date.now(), betting: bettingView, locked: lockedView, price, ticks, results };
   }
 
   async history(tableId: string, limit = 50, beforeRoundNo?: number) {
@@ -210,6 +211,15 @@ export class RoundsService {
       return { price: Number(h.price), source: h.source ?? "?", ts: Number(h.ts) };
     } catch {
       return null;
+    }
+  }
+
+  private async recentTicks(symbol: string, n: number): Promise<PriceTick[]> {
+    try {
+      const raw = await this.redis.lrange(redisKeys.priceTicks(symbol), 0, n - 1);
+      return raw.map((s) => JSON.parse(s) as PriceTick).reverse();
+    } catch {
+      return [];
     }
   }
 

@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 // Token values mirror packages/shared/src/colors.ts and TECH_DESIGN.md §3.2.1.
 const config: Config = {
-  content: ["./src/**/*.{ts,tsx}"],
+  content: ["./src/**/*.{ts,tsx}", "../../packages/ui/src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
@@ -26,8 +26,13 @@ const config: Config = {
       },
       keyframes: {
         fadein: { from: { opacity: "0", transform: "translateY(-6px)" }, to: { opacity: "1", transform: "none" } },
+        winglow: {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(232,201,122,0)" },
+          "50%": { boxShadow: "0 0 28px 6px rgba(232,201,122,.55)" },
+        },
+        shimmer: { from: { backgroundPosition: "-200% 0" }, to: { backgroundPosition: "200% 0" } },
       },
-      animation: { fadein: "fadein .25s ease-out" },
+      animation: { fadein: "fadein .25s ease-out", winglow: "winglow 1s ease-in-out 3", shimmer: "shimmer 2.5s linear infinite" },
     },
   },
   plugins: [],

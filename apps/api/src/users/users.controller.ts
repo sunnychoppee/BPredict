@@ -1,5 +1,5 @@
 import { Controller, Get, NotFoundException, UseGuards } from "@nestjs/common";
-import type { MeResponse } from "@bpredict/shared";
+import type { MeResponse, UserStatsView } from "@bpredict/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { JwtAuthGuard } from "../auth/jwt.guard";
@@ -32,6 +32,19 @@ export class UsersController {
       },
       balances: balances.map((b) => ({ currency: b.currency, amount: Number(b.amount) })),
       identities: user.identities,
+    };
+  }
+
+  /** Lifetime play stats (from settlement). Zeros for users who have not played. */
+  @Get("stats")
+  async stats(@CurrentUser() auth: AuthUser): Promise<UserStatsView> {
+    const s = await this.prisma.userStats.findUnique({ where: { userId: auth.id } });
+    return {
+      totalRounds: s?.totalRounds ?? 0,
+      wins: s?.wins ?? 0,
+      currentStreak: s?.currentStreak ?? 0,
+      maxStreak: s?.maxStreak ?? 0,
+      netProfit: Number(s?.netProfit ?? 0n),
     };
   }
 }

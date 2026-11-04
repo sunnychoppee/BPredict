@@ -30,7 +30,30 @@ export interface TableSnapshot {
   betting: RoundView | null;
   locked: RoundView | null;
   price: PriceTick | null;
+  /** Last ~10 minutes of 1 s ticks, oldest first (for the chart). */
+  ticks: PriceTick[];
   results: RoundResult[];
+}
+
+export interface UserStatsView {
+  totalRounds: number;
+  wins: number;
+  currentStreak: number;
+  maxStreak: number;
+  netProfit: number;
+}
+
+/** Public, non-sensitive subset of economy params the client needs to render odds and limits. */
+export interface EconomyPublic {
+  feeRate: number;
+  seedPerSide: number;
+  minBet: number;
+  maxBetNormal: number;
+  maxBetVip: number;
+  chips: readonly number[];
+  streakBonus: { streak: number; rate: number }[];
+  streakBonusCap: number;
+  welcomePack: number;
 }
 
 export interface PriceTick {
@@ -79,6 +102,7 @@ export const userChannel = (userId: string, event: string) => `user:${userId}:${
 
 export const redisKeys = {
   price: (symbol: string) => `price:${symbol}`,
+  priceTicks: (symbol: string) => `price:${symbol}:ticks`,
   tableState: (tableId: string) => `table:${tableId}:state`,
   tableResults: (tableId: string) => `table:${tableId}:results`,
   roundPools: (roundId: string) => `round:${roundId}:pools`,

@@ -88,9 +88,10 @@ sub.on("pmessage", (_pattern, channel, message) => {
 
 // ---- snapshot on connect ----
 async function snapshot(tableId: string): Promise<ServerEvent> {
-  const [stateRaw, priceH, resultsRaw] = await Promise.all([
+  const [stateRaw, priceH, ticksRaw, resultsRaw] = await Promise.all([
     redis.get(redisKeys.tableState(tableId)).catch(() => null),
     redis.hgetall(redisKeys.price("BTCUSDT")).catch(() => ({}) as Record<string, string>),
+    redis.lrange(redisKeys.priceTicks("BTCUSDT"), 0, 599).catch(() => [] as string[]),
     redis.lrange(redisKeys.tableResults(tableId), 0, 99).catch(() => [] as string[]),
   ]);
   const state = stateRaw ? (JSON.parse(stateRaw) as Extract<ServerEvent, { t: "round.state" }>) : null;
@@ -103,7 +104,8 @@ async function snapshot(tableId: string): Promise<ServerEvent> {
   }
   const price: PriceTick | null = priceH.price ? { price: Number(priceH.price), source: priceH.source ?? "?", ts: Number(priceH.ts) } : null;
   const results = resultsRaw.map((s) => JSON.parse(s) as RoundResult).reverse();
-  return { t: "snapshot", tableId, serverTime: Date.now(), betting, locked: state?.locked ?? null, price, results };
+  const ticks = ticksRaw.map((s) => JSON.parse(s) as PriceTick).reverse();
+  return { t: "snapshot", tableId, serverTime: Date.now(), betting, locked: state?.locked ?? null, price, ticks, results };
 }
 
 // ---- HTTP (health) + WS ----
