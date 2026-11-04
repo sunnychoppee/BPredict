@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { CHIP_DENOMINATIONS, DEFAULT_ECONOMY, ROUND_SECONDS, liveOdds, type Side } from "@bpredict/shared";
 import { Chip, ChipStack, CountdownRing, GoldButton, Panel, Pill, TugOfWar, fmt, fmtPx, mmss, sound } from "@bpredict/ui";
 import { useMe } from "@/components/use-me";
 import { RoadPanel } from "@/components/road-panel";
+import { AnnounceTicker } from "@/components/announce-ticker";
 import { PriceChartClient } from "@/components/price-chart-client";
 import { ApiError } from "@/lib/api";
 import { cancelBets, placeBet, useTable } from "@/lib/table-store";
@@ -32,6 +34,8 @@ export function Table() {
   const { me, loading, reload } = useMe();
   const t = useTable();
   const now = useNow();
+  const tt = useTranslations("table");
+  const tc = useTranslations("common");
 
   const chips = t.economy?.chips ?? CHIP_DENOMINATIONS;
   const [chip, setChip] = useState<number>(1000);
@@ -94,7 +98,7 @@ export function Table() {
       await placeBet(betting.id, side, amount);
       await t.refreshMyBets();
     } catch (e) {
-      fail(e, "下注失敗");
+      fail(e, tt("betFailed"));
     } finally {
       setBusy(null);
     }
@@ -111,7 +115,7 @@ export function Table() {
       }
       await t.refreshMyBets();
     } catch (e) {
-      fail(e, "重複下注失敗");
+      fail(e, tt("repeatFailed"));
     } finally {
       setBusy(null);
     }
@@ -132,7 +136,7 @@ export function Table() {
       }
       await t.refreshMyBets();
     } catch (e) {
-      fail(e, "加倍失敗");
+      fail(e, tt("doubleFailed"));
     } finally {
       setBusy(null);
     }
@@ -146,7 +150,7 @@ export function Table() {
       await cancelBets(betting.id);
       await t.refreshMyBets();
     } catch (e) {
-      fail(e, "取消失敗");
+      fail(e, tt("cancelFailed"));
     } finally {
       setBusy(null);
     }
@@ -159,10 +163,11 @@ export function Table() {
     <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
       {/* ------------------------------------------------ table ------------------------------------------------ */}
       <Panel className="flex-1 p-3 sm:p-4">
+        <AnnounceTicker />
         {/* phase header */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-[.3em] text-gold/80">BTC / USDT · 5 分鐘一局</div>
+            <div className="text-[10px] uppercase tracking-[.3em] text-gold/80">{tt("subtitle")}</div>
             <div className="num mt-0.5 flex items-baseline gap-2 text-3xl text-cream">
               {fmtPx(t.price?.price)}
               {priceDelta != null && (
@@ -174,20 +179,17 @@ export function Table() {
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-cream/60">
               {betting ? (
                 <>
-                  <Pill>第 {betting.roundNo} 局</Pill>
-                  <span>下注中</span>
+                  <Pill>{tc("round", { n: betting.roundNo })}</Pill>
+                  <span>{tt("betting")}</span>
+                  {me && t.myStreak >= 2 && <span className="rounded-full bg-gold/20 px-1.5 py-0.5 text-[10px] text-gold-bright">{tt("streak", { n: t.myStreak })}</span>}
                 </>
               ) : (
-                <span>等待開局…</span>
+                <span>{tt("waiting")}</span>
               )}
-              {locked && (
-                <span className="text-cream/50">
-                  · 上一局 #{locked.roundNo} 鎖定 <b className="num text-cream/80">{fmtPx(locked.lockPrice)}</b>，{mmss(lockedSecs)} 後開獎
-                </span>
-              )}
+              {locked && <span className="num text-cream/50">{tt("prevLocked", { no: locked.roundNo, price: fmtPx(locked.lockPrice), t: mmss(lockedSecs) })}</span>}
             </div>
           </div>
-          <CountdownRing secs={betting ? secsLeft : 0} total={ROUND_SECONDS} label={betting ? "下注倒數" : "等待"} tone={betting ? "gold" : "void"} />
+          <CountdownRing secs={betting ? secsLeft : 0} total={ROUND_SECONDS} label={betting ? tt("countdown") : tt("wait")} tone={betting ? "gold" : "void"} />
         </div>
 
         {/* chart */}
@@ -196,7 +198,7 @@ export function Table() {
         </div>
 
         {/* tug of war */}
-        <TugOfWar className="mt-3" banker={betting?.poolBanker ?? 0} player={betting?.poolPlayer ?? 0} seed={seed} oddsBanker={odds.BANKER} oddsPlayer={odds.PLAYER} />
+        <TugOfWar className="mt-3" banker={betting?.poolBanker ?? 0} player={betting?.poolPlayer ?? 0} seed={seed} oddsBanker={odds.BANKER} oddsPlayer={odds.PLAYER} labels={{ bankerPool: tt("bankerPool"), playerPool: tt("playerPool") }} />
 
         {/* bet areas */}
         <div className="mt-3 grid grid-cols-2 gap-3">
@@ -218,9 +220,9 @@ export function Table() {
                 } ${glow ? "animate-winglow" : ""}`}
               >
                 <div className="font-display text-5xl leading-none drop-shadow-[0_2px_0_rgba(0,0,0,.4)]">{isB ? "莊" : "閒"}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-widest opacity-70">{isB ? "BANKER · 漲" : "PLAYER · 跌"}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-widest opacity-70">{isB ? tt("bankerSub") : tt("playerSub")}</div>
                 <div className="num mt-2 text-xl text-cream">×{(isB ? odds.BANKER : odds.PLAYER).toFixed(2)}</div>
-                <div className="num text-[11px] text-cream/60">池 {fmt(pool)}</div>
+                <div className="num text-[11px] text-cream/60">{tt("pool", { n: fmt(pool) })}</div>
                 {mine > 0 && (
                   <div className="absolute bottom-2 left-2 flex items-end gap-1.5">
                     <ChipStack amount={mine} chips={chips} size={24} />
@@ -236,13 +238,16 @@ export function Table() {
         {/* my stake line */}
         <div className="mt-2 flex items-center justify-between text-[11px] text-cream/70">
           <span>
-            我的本局：<span className="text-banker">莊 {fmt(myBanker)}</span> · <span className="text-player">閒 {fmt(myPlayer)}</span>
-          </span>
-          {t.economy && (
-            <span className="text-cream/45">
-              單局上限 {fmt(me?.user.isVip ? t.economy.maxBetVip : t.economy.maxBetNormal)} · 桌費 {(feeRate * 100).toFixed(0)}%
+            {tt("myStake")}
+            <span className="text-banker">
+              {tc("banker")} {fmt(myBanker)}
+            </span>{" "}
+            ·{" "}
+            <span className="text-player">
+              {tc("player")} {fmt(myPlayer)}
             </span>
-          )}
+          </span>
+          {t.economy && <span className="text-cream/45">{tt("limits", { max: fmt(me?.user.isVip ? t.economy.maxBetVip : t.economy.maxBetNormal), fee: (feeRate * 100).toFixed(0) })}</span>}
         </div>
 
         {/* road (mobile only; desktop uses the right column) */}
@@ -273,22 +278,22 @@ export function Table() {
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           <GoldButton variant="outline" disabled={!canBet || !t.lastRoundBets.length} onClick={() => void onRepeat()}>
-            {busy === "repeat" ? "…" : "重複"}
+            {busy === "repeat" ? "…" : tt("repeat")}
           </GoldButton>
           <GoldButton variant="outline" disabled={!canBet || !t.myBets.length} onClick={() => void onDouble()}>
-            {busy === "double" ? "…" : "加倍"}
+            {busy === "double" ? "…" : tt("double")}
           </GoldButton>
           <GoldButton variant="outline" disabled={!betting || !t.myBets.length || !!busy} onClick={() => void onCancel()}>
-            {busy === "cancel" ? "…" : "撤銷"}
+            {busy === "cancel" ? "…" : tt("undo")}
           </GoldButton>
         </div>
 
         {!me && !loading && (
           <div className="mt-3 text-center text-xs text-cream/60">
             <Link href="/login" className="underline">
-              登入
+              {tc("login")}
             </Link>
-            後即可下注，新手送 {fmt(t.economy?.welcomePack ?? DEFAULT_ECONOMY.welcome_pack)} 金幣
+            {tt("loginHint", { n: fmt(t.economy?.welcomePack ?? DEFAULT_ECONOMY.welcome_pack) })}
           </div>
         )}
 
@@ -335,13 +340,15 @@ export function Table() {
 }
 
 function SettledBanner({ settled }: { settled: NonNullable<ReturnType<typeof useTable.getState>["settled"]> }) {
+  const tt = useTranslations("table");
+  const tc = useTranslations("common");
   const { ev, payout } = settled;
   const tone = ev.winner === "BANKER" ? "banker" : ev.winner === "PLAYER" ? "player" : "void";
-  const title = ev.winner === "BANKER" ? "莊 勝" : ev.winner === "PLAYER" ? "閒 勝" : "和 局";
+  const title = ev.winner === "BANKER" ? tt("bankerWins") : ev.winner === "PLAYER" ? tt("playerWins") : tt("tieRound");
   const bg = tone === "banker" ? "from-banker/90 to-[#7a1017]/95 border-banker" : tone === "player" ? "from-player/90 to-[#0f2d5e]/95 border-player" : "from-void/80 to-[#444]/95 border-void";
   return (
     <div className={`mx-auto max-w-xs rounded-2xl border-2 bg-gradient-to-b px-5 py-4 text-center text-cream shadow-[0_12px_40px_rgba(0,0,0,.6)] ${bg}`}>
-      <div className="text-[10px] tracking-[.3em] text-cream/70">第 {ev.roundNo} 局</div>
+      <div className="text-[10px] tracking-[.3em] text-cream/70">{tc("round", { n: ev.roundNo })}</div>
       <div className="font-display text-4xl leading-tight drop-shadow">{title}</div>
       <div className="num mt-1 text-xs text-cream/80">
         {fmtPx(ev.lockPrice)} → {fmtPx(ev.closePrice)}
@@ -349,8 +356,8 @@ function SettledBanner({ settled }: { settled: NonNullable<ReturnType<typeof use
       </div>
       {payout && (
         <div className={`num mt-2 rounded-lg px-3 py-1.5 text-lg ${payout.won ? "bg-gold text-felt-dark" : "bg-black/30 text-cream/80"}`}>
-          {payout.won ? `+${fmt(payout.payout)}` : payout.payout === payout.stake ? `退還 ${fmt(payout.stake)}` : `−${fmt(payout.stake)}`}
-          {payout.won && payout.streak >= 2 && <span className="ml-2 text-xs">🔥 {payout.streak} 連勝</span>}
+          {payout.won ? `+${fmt(payout.payout)}` : payout.payout === payout.stake ? tt("refund", { n: fmt(payout.stake) }) : `−${fmt(payout.stake)}`}
+          {payout.won && payout.streak >= 2 && <span className="ml-2 text-xs">{tt("streak", { n: payout.streak })}</span>}
         </div>
       )}
     </div>

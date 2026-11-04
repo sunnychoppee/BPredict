@@ -4,6 +4,7 @@ import {
   PRICE_GRACE_MS,
   computeSettlement,
   redisKeys,
+  rewardDay,
   roundNoAt,
   roundTimes,
   tableChannel,
@@ -168,6 +169,8 @@ export class RoundEngine {
 
     const winner: Side = closePrice > lockPrice ? "BANKER" : "PLAYER";
     const params = await getEconomy(this.prisma);
+    const day = rewardDay(r.closeAt.getTime());
+    const leaderBefore = await this.dailyLeader(day);
 
     const outcome = await this.prisma.$transaction(
       async (tx) => {
@@ -228,6 +231,17 @@ export class RoundEngine {
               max_streak = GREATEST(user_stats.max_streak, ${u.streak}),
               net_profit = user_stats.net_profit + ${BigInt(u.paid - u.staked)},
               updated_at = now()`;
+          // W5: per-day aggregate for day / week / season leaderboards.
+          await tx.$executeRaw`
+            INSERT INTO user_stats_daily (user_id, day, rounds, wins, staked, net_profit, max_streak, updated_at)
+            VALUES (${userId}::uuid, ${day}, 1, ${u.won ? 1 : 0}, ${BigInt(u.staked)}, ${BigInt(u.paid - u.staked)}, ${u.streak}, now())
+            ON CONFLICT (user_id, day) DO UPDATE SET
+              rounds = user_stats_daily.rounds + 1,
+              wins = user_stats_daily.wins + ${u.won ? 1 : 0},
+              staked = user_stats_daily.staked + ${BigInt(u.staked)},
+              net_profit = user_stats_daily.net_profit + ${BigInt(u.paid - u.staked)},
+              max_streak = GREATEST(user_stats_daily.max_streak, ${u.streak}),
+              updated_at = now()`;
         }
 
         await tx.round.update({
@@ -277,7 +291,63 @@ export class RoundEngine {
       await this.publishBalance(userId, "payout");
     }
     await this.redis.del(redisKeys.roundPools(r.id)).catch(() => undefined);
+    await this.announceAfterSettle(Number(r.roundNo), winner, perUser, params, day, leaderBefore).catch((e) => log.warn("engine", `announce failed: ${(e as Error).message}`));
     return true;
+  }
+
+  // ---------------------------------------------------------------- announcements (PRD §8)
+
+  private async dailyLeader(day: string): Promise<{ userId: string; netProfit: bigint } | null> {
+    try {
+      const row = await this.prisma.userStatsDaily.findFirst({ where: { day, netProfit: { gt: 0n } }, orderBy: { netProfit: "desc" }, select: { userId: true, netProfit: true } });
+      return row;
+    } catch {
+      return null;
+    }
+  }
+
+  private async announceAfterSettle(
+    roundNo: number,
+    winner: Side,
+    perUser: Map<string, { staked: number; paid: number; won: boolean; streak: number }>,
+    params: Awaited<ReturnType<typeof getEconomy>>,
+    day: string,
+    leaderBefore: { userId: string; netProfit: bigint } | null,
+  ) {
+    const announce = async (kind: "streak" | "dragon" | "leader", text: string) => {
+      const ev: ServerEvent = { t: "announce", kind, text, ts: Date.now() };
+      await publish(this.redis, tableChannel(this.tableId, "announce"), ev);
+      log.info("engine", `announce[${kind}] ${text}`);
+    };
+
+    // Streak milestones for this round's winners (3 / 5 / 10 … from economy params).
+    const milestones = new Set(params.streak_bonus.map((s) => s.streak));
+    const hits = [...perUser.entries()].filter(([, u]) => u.won && milestones.has(u.streak));
+    if (hits.length) {
+      const users = await this.prisma.user.findMany({ where: { id: { in: hits.map(([id]) => id) } }, select: { id: true, nickname: true } });
+      const nick = new Map(users.map((u) => [u.id, u.nickname]));
+      for (const [id, u] of hits) await announce("streak", `🔥 ${nick.get(id) ?? "玩家"} 達成 ${u.streak} 連勝！`);
+    }
+
+    // Dragon: N consecutive identical results (reads the cached result list, newest first).
+    const raw = await this.redis.lrange(redisKeys.tableResults(this.tableId), 0, 31).catch(() => [] as string[]);
+    let run = 0;
+    for (const s of raw) {
+      const res = JSON.parse(s) as RoundResult;
+      if (res.winner === winner) run++;
+      else if (res.winner === null) continue; // voids don't break a dragon
+      else break;
+    }
+    if (run >= params.announce_dragon_len) {
+      await announce("dragon", `🐉 ${winner === "BANKER" ? "莊" : "閒"}長龍 ${run} 連！第 ${roundNo} 局`);
+    }
+
+    // Daily profit leader changed hands.
+    const leaderAfter = await this.dailyLeader(day);
+    if (leaderAfter && leaderBefore && leaderAfter.userId !== leaderBefore.userId) {
+      const u = await this.prisma.user.findUnique({ where: { id: leaderAfter.userId }, select: { nickname: true } });
+      await announce("leader", `👑 ${u?.nickname ?? "玩家"} 登上今日淨勝榜榜首（+${Number(leaderAfter.netProfit).toLocaleString("en-US")}）`);
+    }
   }
 
   private async voidRound(r: Round, reason: string, closePrice?: number, source?: string): Promise<boolean> {

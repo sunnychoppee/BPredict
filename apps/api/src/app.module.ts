@@ -9,9 +9,11 @@ import { RedisModule } from "./redis/redis.module";
 import { RoundsModule } from "./rounds/rounds.module";
 import { RewardsModule } from "./rewards/rewards.module";
 import { ShopModule } from "./shop/shop.module";
+import { LeaderboardModule } from "./leaderboard/leaderboard.module";
+import { AdminModule } from "./admin/admin.module";
 
 @Module({
-  imports: [PrismaModule, RedisModule, EconomyModule, LedgerModule, AuthModule, UsersModule, RoundsModule, RewardsModule, ShopModule],
+  imports: [PrismaModule, RedisModule, EconomyModule, LedgerModule, AuthModule, UsersModule, RoundsModule, RewardsModule, ShopModule, LeaderboardModule, AdminModule],
   controllers: [HealthController],
 })
 export class AppModule {}

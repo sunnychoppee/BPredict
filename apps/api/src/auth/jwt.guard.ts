@@ -16,3 +16,22 @@ export class JwtAuthGuard implements CanActivate {
     return true;
   }
 }
+
+/** Like JwtAuthGuard but anonymous requests pass through with `req.user` unset. */
+@Injectable()
+export class OptionalJwtAuthGuard implements CanActivate {
+  constructor(private readonly tokens: TokensService) {}
+
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
+    const req = ctx.switchToHttp().getRequest<Request & { user?: AuthUser }>();
+    const header = req.headers.authorization;
+    if (!header?.startsWith("Bearer ")) return true;
+    try {
+      const payload = await this.tokens.verifyAccess(header.slice(7));
+      req.user = { id: payload.sub };
+    } catch {
+      /* treat as anonymous */
+    }
+    return true;
+  }
+}

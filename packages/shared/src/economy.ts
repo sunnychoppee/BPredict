@@ -28,6 +28,15 @@ export interface EconomyParams {
   vip_monthly_price_usdt: number;
   vip_daily_coins: number;
   season_pass_price_usdt: number;
+  /** Season 1 starts on this UTC+8 calendar day (a Monday); seasons are `season_days` long. */
+  season_start: string;
+  season_days: number;
+  /** Minimum settled rounds in the period to appear on the win-rate board. */
+  leaderboard_min_rounds_day: number;
+  leaderboard_min_rounds: number;
+  /** Table-wide announcements. */
+  announce_big_bet: number;
+  announce_dragon_len: number;
 }
 
 export const DEFAULT_ECONOMY: EconomyParams = {
@@ -65,6 +74,12 @@ export const DEFAULT_ECONOMY: EconomyParams = {
   vip_monthly_price_usdt: 9.99,
   vip_daily_coins: 10_000,
   season_pass_price_usdt: 4.99,
+  season_start: "2026-11-02",
+  season_days: 28,
+  leaderboard_min_rounds_day: 20,
+  leaderboard_min_rounds: 50,
+  announce_big_bet: 50_000,
+  announce_dragon_len: 8,
 };
 
 export const CHIP_DENOMINATIONS = [100, 500, 1_000, 5_000, 10_000, 50_000] as const;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { AuthTokens } from "@bpredict/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-store";
@@ -10,6 +11,7 @@ import { getTelegramWebApp, setupTelegramChrome } from "@/lib/telegram";
  * Inside Telegram: exchanges initData for tokens on first load. Outside Telegram: renders nothing.
  */
 export function TelegramAutoLogin() {
+  const t = useTranslations("login");
   const { accessToken, hydrated, setTokens } = useAuth();
   const [status, setStatus] = useState<"idle" | "pending" | "failed">("idle");
   const attempted = useRef(false);
@@ -33,7 +35,7 @@ export function TelegramAutoLogin() {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-felt-dark/90">
       <div className="gold-frame rounded-lg bg-felt px-6 py-4 text-center">
-        {status === "pending" ? "正在以 Telegram 帳號登入…" : "Telegram 登入失敗，請重新開啟 Mini App。"}
+        {status === "pending" ? t("tgPending") : t("tgFailed")}
       </div>
     </div>
   );

@@ -10,10 +10,12 @@ export interface TugOfWarProps {
   oddsBanker?: number;
   oddsPlayer?: number;
   className?: string;
+  /** i18n overrides; defaults are zh-Hant. */
+  labels?: { bankerPool: string; playerPool: string };
 }
 
 /** Banker (red, left) vs Player (blue, right) pool bar. Widths animate on pool updates. */
-export function TugOfWar({ banker, player, seed = 0, oddsBanker, oddsPlayer, className = "" }: TugOfWarProps) {
+export function TugOfWar({ banker, player, seed = 0, oddsBanker, oddsPlayer, className = "", labels = { bankerPool: "莊池", playerPool: "閒池" } }: TugOfWarProps) {
   const b = banker + seed;
   const p = player + seed;
   const total = b + p;
@@ -22,12 +24,12 @@ export function TugOfWar({ banker, player, seed = 0, oddsBanker, oddsPlayer, cla
     <div className={`select-none ${className}`}>
       <div className="mb-1 flex items-end justify-between text-[11px]">
         <span className="text-banker">
-          莊池 <b className="num text-cream">{fmt(banker)}</b>
+          {labels.bankerPool} <b className="num text-cream">{fmt(banker)}</b>
           {oddsBanker != null && <span className="ml-1 text-cream/60">×{oddsBanker.toFixed(2)}</span>}
         </span>
         <span className="text-player">
           {oddsPlayer != null && <span className="mr-1 text-cream/60">×{oddsPlayer.toFixed(2)}</span>}
-          <b className="num text-cream">{fmt(player)}</b> 閒池
+          <b className="num text-cream">{fmt(player)}</b> {labels.playerPool}
         </span>
       </div>
       <div className="relative h-3 overflow-hidden rounded-full border border-gold/40 bg-felt-dark/80 shadow-inset">

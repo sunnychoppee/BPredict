@@ -121,6 +121,7 @@ export class RoundsService {
     if (result.created && "tableId" in result && result.tableId) {
       await this.bumpPools(result.tableId, roundId, side, amount);
       await this.publishBalance(userId, "bet");
+      if (amount >= params.announce_big_bet) await this.announceBigBet(result.tableId, userId, side, amount);
     }
     return { id: result.bet.id, side: result.bet.side, amount: Number(result.bet.amount), created: result.created };
   }
@@ -162,6 +163,21 @@ export class RoundsService {
   }
 
   // ---------- redis helpers ----------
+
+  private async announceBigBet(tableId: string, userId: string, side: Side, amount: number) {
+    try {
+      const u = await this.prisma.user.findUnique({ where: { id: userId }, select: { nickname: true } });
+      const ev: ServerEvent = {
+        t: "announce",
+        kind: "big_bet",
+        text: `💰 ${u?.nickname ?? "玩家"} 重注 ${amount.toLocaleString("en-US")} 押${side === "BANKER" ? "莊" : "閒"}！`,
+        ts: Date.now(),
+      };
+      await this.redis.publish(tableChannel(tableId, "announce"), JSON.stringify(ev));
+    } catch (e) {
+      this.log.warn(`announce publish failed: ${(e as Error).message}`);
+    }
+  }
 
   private async withLivePools(view: RoundView): Promise<RoundView> {
     try {

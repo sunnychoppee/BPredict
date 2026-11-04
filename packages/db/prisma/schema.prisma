@@ -260,6 +260,42 @@ model UserStats {
 }
 
 // ---------------------------------------------------------------------------
+// W5: leaderboards, admin
+// ---------------------------------------------------------------------------
+
+/// Per-user per-day (UTC+8 "YYYY-MM-DD") play aggregates, written in the settlement transaction.
+/// Day / week / season leaderboards are sums over this table.
+model UserStatsDaily {
+  userId    String   @map("user_id") @db.Uuid
+  day       String
+  rounds    Int      @default(0)
+  wins      Int      @default(0)
+  staked    BigInt   @default(0)
+  netProfit BigInt   @default(0) @map("net_profit")
+  /// Best streak reached during this day.
+  maxStreak Int      @default(0) @map("max_streak")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([userId, day])
+  @@index([day])
+  @@map("user_stats_daily")
+}
+
+/// Audit log for every ops-console action.
+model AdminAction {
+  id          BigInt   @id @default(autoincrement())
+  adminUserId String   @map("admin_user_id") @db.Uuid
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  payload     Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("admin_actions")
+}
+
+// ---------------------------------------------------------------------------
 // W4: free rewards, shop, payments
 // ---------------------------------------------------------------------------
 

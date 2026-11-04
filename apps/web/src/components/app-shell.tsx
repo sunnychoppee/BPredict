@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { fmt, fmtPx, sound } from "@bpredict/ui";
 import { TelegramAutoLogin } from "@/components/telegram-auto-login";
 import { Toasts } from "@/components/toasts";
 import { useMe } from "@/components/use-me";
+import { useLocale } from "@/lib/i18n";
 import { useTable } from "@/lib/table-store";
 
 const TABS = [
-  { href: "/", label: "牌桌", icon: "🎴" },
-  { href: "/rewards", label: "獎勵", icon: "🎁" },
-  { href: "/shop", label: "商店", icon: "🪙" },
-  { href: "/leaderboard", label: "排行", icon: "🏆" },
-  { href: "/me", label: "我的", icon: "👤" },
+  { href: "/", key: "table", icon: "🎴" },
+  { href: "/rewards", key: "rewards", icon: "🎁" },
+  { href: "/shop", key: "shop", icon: "🪙" },
+  { href: "/leaderboard", key: "leaderboard", icon: "🏆" },
+  { href: "/me", key: "me", icon: "👤" },
 ] as const;
 
 /** Shared chrome: top bar (logo · price · balances), PC nav links, mobile bottom tabs. */
@@ -22,6 +24,9 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
   const pathname = usePathname();
   const { me, loading } = useMe();
   const t = useTable();
+  const tn = useTranslations("nav");
+  const tc = useTranslations("common");
+  const adoptLocale = useLocale((s) => s.adoptFromProfile);
   const [muted, setMuted] = useState(false);
 
   useEffect(() => {
@@ -35,6 +40,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
     if (me) {
       t.setCoins(me.balances.find((b) => b.currency === "COINS")?.amount ?? 0);
       t.setGems(me.balances.find((b) => b.currency === "GEMS")?.amount ?? 0);
+      adoptLocale(me.user.locale);
     } else if (!loading) {
       t.setCoins(null);
       t.setGems(null);
@@ -60,7 +66,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
           <div className="hidden items-center gap-1 lg:flex">
             {TABS.map((tab) => (
               <Link key={tab.href} href={tab.href} className={`rounded-md px-3 py-1.5 text-sm transition ${pathname === tab.href ? "bg-gold/15 text-gold-bright" : "text-cream/70 hover:text-gold-bright"}`}>
-                {tab.label}
+                {tn(tab.key)}
               </Link>
             ))}
           </div>
@@ -81,11 +87,11 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
               <span className="text-cream/50">…</span>
             ) : (
               <Link href="/login" className="btn-gold text-xs">
-                登入
+                {tc("login")}
               </Link>
             )}
             <button
-              aria-label={muted ? "開啟音效" : "關閉音效"}
+              aria-label={muted ? tc("soundOn") : tc("soundOff")}
               className="rounded-md px-1.5 text-base text-cream/60 hover:text-gold-bright"
               onClick={() => {
                 const m = !muted;
@@ -109,7 +115,7 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
             return (
               <Link key={tab.href} href={tab.href} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] ${active ? "text-gold-bright" : "text-cream/55"}`} onClick={() => sound().play("click")}>
                 <span className={`text-lg leading-none ${active ? "drop-shadow-[0_0_6px_rgba(232,201,122,.8)]" : "opacity-80"}`}>{tab.icon}</span>
-                {tab.label}
+                {tn(tab.key)}
                 {active && <span className="mt-0.5 h-0.5 w-5 rounded-full bg-gold" />}
               </Link>
             );

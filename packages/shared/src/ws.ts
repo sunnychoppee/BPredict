@@ -88,7 +88,7 @@ export type ServerEvent =
     }
   | { t: "user.balance"; currency: "COINS" | "GEMS"; amount: number; reason: string }
   | { t: "user.payout"; roundId: string; roundNo: number; stake: number; payout: number; streakBonus: number; won: boolean; streak: number }
-  | { t: "announce"; kind: "big_bet" | "streak" | "dragon"; text: string; ts: number }
+  | { t: "announce"; kind: "big_bet" | "streak" | "dragon" | "leader"; text: string; ts: number }
   | { t: "error"; message: string };
 
 // ---- client → server ----

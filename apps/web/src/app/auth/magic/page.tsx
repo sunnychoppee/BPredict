@@ -2,11 +2,13 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { AuthTokens } from "@bpredict/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth-store";
 
 function MagicInner() {
+  const t = useTranslations("login");
   const router = useRouter();
   const params = useSearchParams();
   const setTokens = useAuth((s) => s.setTokens);
@@ -29,10 +31,13 @@ function MagicInner() {
     <main className="flex min-h-screen items-center justify-center text-sm text-cream/70">
       {error ? (
         <span>
-          連結無效或已過期。<a className="underline" href="/login">重新登入</a>
+          {t("magicInvalid")}{" "}
+          <a className="underline" href="/login">
+            {t("relogin")}
+          </a>
         </span>
       ) : (
-        "驗證中…"
+        t("verifying")
       )}
     </main>
   );

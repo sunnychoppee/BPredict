@@ -136,24 +136,32 @@ export function roadStats(results: RoundResult[]) {
   return { b, p, v, streak, streakSide };
 }
 
-export function RoadStats({ results, className = "" }: { results: RoundResult[]; className?: string }) {
+export interface RoadLabels {
+  banker: string;
+  player: string;
+  tie: string;
+  /** e.g. "{side} {n} 連 · 長龍" — receives the side label and run length. */
+  dragon: (side: string, n: number) => string;
+}
+export const ROAD_LABELS_ZH: RoadLabels = { banker: "莊", player: "閒", tie: "和", dragon: (side, n) => `${side} ${n} 連 · 長龍` };
+
+export function RoadStats({ results, className = "", labels = ROAD_LABELS_ZH }: { results: RoundResult[]; className?: string; labels?: RoadLabels }) {
   const s = roadStats(results);
   return (
     <div className={`flex items-center gap-3 text-xs text-cream/80 ${className}`}>
       <span>
-        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-banker align-middle" />莊 {s.b}
+        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-banker align-middle" />
+        {labels.banker} {s.b}
       </span>
       <span>
-        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-player align-middle" />閒 {s.p}
+        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-player align-middle" />
+        {labels.player} {s.p}
       </span>
       <span>
-        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-void align-middle" />和 {s.v}
+        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-void align-middle" />
+        {labels.tie} {s.v}
       </span>
-      {s.streak >= 3 && s.streakSide && (
-        <span className="ml-auto rounded bg-gold/20 px-1.5 py-0.5 text-gold-bright">
-          {s.streakSide === "BANKER" ? "莊" : "閒"} {s.streak} 連 · 長龍
-        </span>
-      )}
+      {s.streak >= 3 && s.streakSide && <span className="ml-auto rounded bg-gold/20 px-1.5 py-0.5 text-gold-bright">{labels.dragon(s.streakSide === "BANKER" ? labels.banker : labels.player, s.streak)}</span>}
     </div>
   );
 }

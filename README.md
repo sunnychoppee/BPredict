@@ -20,7 +20,7 @@ pnpm dev                    # 同時啟動 web / api / worker / ws
 | web | http://localhost:3000 |
 | api | http://localhost:3001（`/health`） |
 | ws | ws://localhost:3002（`/health`） |
-| admin | http://localhost:3003（W5） |
+| admin | http://localhost:3000/admin（登入 email 需在 `ADMIN_EMAILS` 內） |
 
 沒有 Docker 時 api 仍可啟動，`/health` 回 `degraded`，登入等需要資料庫的操作會失敗。
 
@@ -40,11 +40,10 @@ pnpm --filter @bpredict/db studio   # Prisma Studio 看資料
 
 ```
 apps/web      Next.js 15 — 網頁 + Telegram Mini App 同一套
-apps/api      NestJS — 鑑權、帳本、商店、支付回調
-apps/worker   局調度 / 行情 / 結算
+apps/api      NestJS — 鑑權、帳本、商店、支付回調、排行、管理後台 API
+apps/worker   局調度 / 行情 / 結算 / 公告
 apps/ws       WebSocket 網關
 .railway/     Railway IaC（railway.ts 描述整個 UAT 環境）
-apps/admin    AdminJS 後台（W5）
 packages/shared  型別、zod、常量、經濟參數預設值
 packages/db      Prisma schema、遷移、seed
 packages/ui      設計系統組件（W3）
@@ -80,7 +79,7 @@ pnpm dev                       # 等 worker 印出 acquired leadership
 ## 牌桌 UI 與設計系統（W3 已完成）
 
 - **`packages/ui`**：籌碼（`Chip`/`ChipStack`）、金色按鈕與面板、倒數環、拔河條、大路 / 珠盤 / 統計、走勢圖（lightweight-charts）、WebAudio 音效。以原始碼形式被 `apps/web` 引用（`transpilePackages`），不需另外 build。
-- **頁面**：手機底部五頁籤 **牌桌 `/` · 獎勵 `/rewards` · 商店 `/shop` · 排行 `/leaderboard` · 我的 `/me`**；PC 改為頂部導航 + 右側常駐路紙。排行目前是 W5 佔位頁。
+- **頁面**：手機底部五頁籤 **牌桌 `/` · 獎勵 `/rewards` · 商店 `/shop` · 排行 `/leaderboard` · 我的 `/me`**；PC 改為頂部導航 + 右側常駐路紙。
 - **牌桌**：即時價 + 鎖盤價基準線走勢圖、倒數環（最後 10 秒變紅）、彩池拔河條與即時賠率、點莊/閒下注（籌碼飛入動畫）、`重複` / `加倍` / `撤銷`、結算橫幅與贏家金光、輸贏 toast、音效開關（右上角）。
 - **我的**：頭像暱稱、金幣 / 寶石、戰績（`GET /me/stats`）、金幣流水（`GET /me/ledger` 分頁）、登出。
 - **新 API**：`GET /economy`（公開經濟參數，前端用來顯示限額 / 籌碼 / 賠率）、`GET /me/stats`。
@@ -108,6 +107,15 @@ from users u join balances b on b.user_id=u.id and b.currency='COINS';
 
 - **入帳幂等**：`payments` 以 `(provider, provider_order_id)` 唯一；`ShopService.settle()` 用條件更新搶 `PENDING → 終態`，帳本 key `payment:{orderId}:coins|gems`。回調重放、兩個 webhook 同時到都只會入帳一次。
 - **本機驗證**：商店選「測試支付」買金幣包 → 首充 ×2 到帳、`/me` 流水出現 `PURCHASE`；買 VIP 後 `/rewards` 可領 VIP 每日金幣。`apps/api/src/shop/signatures.test.ts` 覆蓋三家驗簽。
+
+## 排行榜、對局紀錄、公告、管理後台與 i18n（W5 已完成）
+
+- **排行 `/leaderboard`**（`GET /leaderboard?board=profit|winrate|streak&period=day|week|season`，匿名可看、帶 token 會多回 `me`）：資料來自 `user_stats_daily`（結算事務內按 UTC+8 日期彙總：局數 / 勝場 / 下注 / 淨勝 / 當日最長連勝）。日榜 00:00 UTC+8 重置、週榜週一重置、賽季自 `season_start` 起每 `season_days`（28）天一季。淨勝榜只列淨勝 > 0；勝率榜日榜需 ≥ 20 局、週 / 季 ≥ 50 局（`leaderboard_min_rounds*`）；連勝榜需 ≥ 2 連。前 50 名，api 端 20 s 快取；我的名次另算（1 + 比我好的人數）。遷移 `w5_backfill_daily_stats` 會從歷史 `bets` / `round_payouts` 回填舊資料。
+- **對局紀錄 `/history`**：牌桌開獎（`GET /tables/:id/rounds`）與我的下注（`GET /me/rounds?limit&before`：每局合併我的注額、派彩（含連勝加成）、淨勝；和局 / 無效顯示退還）。路紙面板與「我的」頁都有入口。
+- **公告（牌桌頂部跑馬燈）**：WS `announce` 事件，`kind = big_bet | streak | dragon | leader`。大注（≥ `announce_big_bet` = 50,000）由 api 下注成功後發；連勝里程碑（`streak_bonus` 的 3 / 5 / 10 連）、長龍（≥ `announce_dragon_len` = 8 連同色）與今日淨勝榜首易主由 worker 結算後發。長龍與榜首另外彈 toast；牌桌狀態列顯示自己的當前連勝。
+- **個人中心**：`PATCH /me { nickname?, locale? }`（暱稱 2–24 字）；語言切換立即生效並寫回用戶 `locale`；`GET /me` 多回 `isAdmin`。
+- **i18n**：`next-intl`（無路由前綴，純客戶端 provider），字典在 `apps/web/messages/{zh-Hant,en}.json`。語言來源：localStorage `bp.locale` → 用戶 profile → 瀏覽器語言（zh* → 繁中，其餘英文）。莊 / 閒 兩個大字與路紙珠子保留中文（百家樂慣例）。
+- **管理後台 `/admin`**（取代原規劃的 AdminJS 獨立服務，見 TECH_DESIGN §7.5）：登入 email 在 `ADMIN_EMAILS`（逗號分隔）內的帳號才看得到入口、API `AdminGuard` 每次請求重新核對。功能：總覽（用戶 / 金幣流通 / 今日局數 / 支付）、經濟參數熱更（JSON 值、型別須與預設一致，30 s 內生效）、商品上下架 / 改價、用戶搜尋（暱稱 / email / id）→ 餘額 / 戰績 / 帳本、**手動調整餘額（走帳本 `ADMIN_ADJUST`，不直寫 `balances`）**、凍結 / 解凍、加減 VIP 天數、支付列表（可按狀態篩）、開獎列表、操作稽核（所有寫操作落 `admin_actions`）。本機測試：`.env` 設 `ADMIN_EMAILS=admin@dev.local` 後用開發登入暱稱 `admin`。
 
 ## UAT 部署（Railway，新加坡）
 
@@ -150,6 +158,7 @@ Windows 上 `railway config plan/apply` 若報「TypeScript SDK requires CLI ≥
 | `NOWPAYMENTS_API_KEY` / `NOWPAYMENTS_IPN_SECRET` | api | NOWPayments **Sandbox**（`account-sandbox.nowpayments.io`）；IPN URL 填 `<API_PUBLIC_URL>/webhooks/nowpayments` |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | api | Stripe **Test** 模式 `sk_test_…`；Webhook endpoint `<API_PUBLIC_URL>/webhooks/stripe`，事件 `checkout.session.completed`、`checkout.session.expired`、`charge.dispute.created` |
 | `TELEGRAM_WEBHOOK_SECRET` | api | 隨機 32+ 字元；api 啟動時會對 `@BacPredict_bot` `setWebhook` |
+| `ADMIN_EMAILS` | api | 可進 `/admin` 的登入 email（逗號分隔，小寫）；留空 = 後台關閉 |
 
 沒設定的渠道在商店中不會出現；UAT 永遠只用 sandbox / test 金鑰，api 啟動時若在非 production 偵測到 `sk_live_` 或 `NOWPAYMENTS_SANDBOX=false` 會直接拒絕啟動。
 

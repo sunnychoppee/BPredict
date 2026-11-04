@@ -1,6 +1,6 @@
 # 技术方案 v1：「庄闲 · BTC 涨跌预测游戏」
 
-> 版本：v1.6 · 日期：2026-11-04 · 对应产品文档：`PRD_v2.md`（v1.6：补 §7.4 W4 实现备注；v1.5：补 §3.5 W3 实现备注；v1.4：§5.5 W2 实现备注、§9.7 Railway 部署方式）
+> 版本：v1.7 · 日期：2026-11-04 · 对应产品文档：`PRD_v2.md`（v1.7：补 §7.5 W5 实现备注、§13 后台决策改为自建；v1.6：补 §7.4 W4 实现备注；v1.5：补 §3.5 W3 实现备注；v1.4：§5.5 W2 实现备注、§9.7 Railway 部署方式）
 > 状态：UI / UAT / 第三方准备项已于 2026-11-01 确认
 
 ---
@@ -34,7 +34,7 @@ apps/
   api/        NestJS：REST、鉴权、账本、商店、支付回调、后台接口
   worker/     局调度、行情采集、结算、排行榜快照、定时任务
   ws/         WebSocket 网关，订阅 Redis 频道向客户端推送
-  admin/      运营后台：AdminJS（基于 Prisma 自动 CRUD）+ 少量定制页（局管理、经济参数、经济面板）；Phase 2 视需要迁移到自建 Next.js
+  （运营后台不再独立成 app：W5 起为 api/src/admin 模块 + web/src/app/admin 页，见 §7.5）
 packages/
   shared/     类型、zod schema、常量、WS 事件协议、路纸算法、结算算法
   db/         Prisma schema 与迁移
@@ -317,6 +317,15 @@ Webhook 流程：验签 → 查 `payments` 订单 → 状态迁移（PENDING →
 - **前端**：`/rewards` 7 格签到条 + 补给能量格倒计时 + VIP / 救济卡片；`/shop` 商品卡（首充时显示 ×2 对比价）、渠道选择 sheet（USDT 链、信用卡、Stars 仅 Telegram 内、测试支付仅非 production）、托管收银台以 `?order=<id>&result=` 回跳后轮询订单直至终态；购买记录列表。头部余额在非牌桌页无 WS，购买成功后主动拉 `/me/balances` 刷新。
 - **未做 / 后续**：`charge.dispute.created` 仅告警未冻结；赛季通行证、皮肤类商品未上架（W5+）；Bot `/start` 仅回一句欢迎语。
 
+### 7.5 实现备注（W5 as-built，2026-11-04：排行、记录、公告、后台、i18n）
+
+- **表**：`user_stats_daily (user_id, day) PK`（局数 / 胜场 / 下注 / 净胜 / 当日最长连胜），由 worker 在结算事务内与 `user_stats` 同时 upsert；`admin_actions`（管理员 / 动作 / 目标 / payload / 时间）。迁移 `w5_backfill_daily_stats` 以 `bets ⋈ rounds ⟕ round_payouts` 回填历史并用窗口函数重建连胜。
+- **排行榜**：没有用 Redis sorted set，直接对 `user_stats_daily` 按区间 `SUM`（`apps/api/src/leaderboard`），top 50 进程内缓存 20 s、按 (board, period, range, minRounds) 分键；"我的名次" 单独查（1 + 严格优于我的人数），`qualified` 与 SQL `HAVING` 条件一致（净胜 > 0 / 局数门槛 / 连胜 ≥ 2）。区间计算在 `@bpredict/shared/leaderboard.ts::periodRange`（日 = UTC+8 日；周 = 周一 00:00 UTC+8；赛季 = `season_start` 起每 `season_days` 天），有单测。规模到万级活跃用户前这条路径足够（索引 `(day)` + 分组），之后再切 Redis。
+- **公告**：复用 W2 预留的 WS `announce` 事件，新增 `kind: "leader"`。大注由 api `RoundsService.placeBet` 成功后发（阈值 `announce_big_bet`）；连胜里程碑（`streak_bonus` 的档位）、长龙（读 `table:results` 缓存连续同色 ≥ `announce_dragon_len`，和局不断龙）、今日净胜榜首易主（结算前后各查一次）由 worker 在结算后异步发，失败只记日志不影响结算。前端跑马灯保留最近 20 条，只有长龙 / 榜首弹 toast。
+- **运营后台**：**改为 api 内 `admin` 模块 + web `/admin` 页，不再起 AdminJS 独立服务**（见 §13 决策更新）。鉴权 `AdminGuard`：Bearer token 有效且用户任一 identity email ∈ `ADMIN_EMAILS`（每次请求查库，撤权即时生效；列表为空则整个后台 403）。所有写操作先执行再 `admin_actions` 落库；余额调整只能经 `LedgerService.post(type: ADMIN_ADJUST)`，key `admin:{adminId}:{ts}:{rand}`，余额不足时拒绝（账本非负约束）。经济参数写入前校验 JSON 类型与 `DEFAULT_ECONOMY` 一致并 `EconomyService.invalidate()`；worker 侧 30 s 缓存自然过期。
+- **i18n**：`next-intl` 仅用客户端 `NextIntlClientProvider`（不走 `[locale]` 路由，Telegram Mini App 的 URL 保持不变），语言状态在 zustand（`apps/web/src/lib/i18n.tsx`），非 React 代码（WS toast）用 `createTranslator` 的 `tr()`。`packages/ui` 组件新增 `labels` 入参以保持无依赖。`LOCALES` 里的 `zh-Hans` 暂映射到繁中字典。
+- **未做 / 后续**：排行奖励（前三名宝石 / 头像框）与好友榜；后台的局作废 / 重算、群发公告、导出；admin 操作二次确认与 2FA（上线前配合 Cloudflare Access）。
+
 ---
 
 ## 8. 数据模型（核心表）
@@ -501,7 +510,7 @@ MVP 全部跑在 Railway 新加坡区。需要扩容时：`api` / `ws` 直接加
 | 事项 | 决策 | 说明 |
 | :--- | :--- | :--- |
 | 收单服务商 | **NOWPayments** | 支持 TRC20 / BEP20 / TON，费率约 0.5%，KYB 较轻；备选 Cryptomus。通过 `PaymentProvider` 抽象接入，便于切换 |
-| 运营后台 | **AdminJS 过渡** | 基于 Prisma 自动生成 CRUD，自托管、数据不出境；局管理 / 经济参数 / 经济面板单独写定制页。Phase 2 视需要迁移自建 |
+| 运营后台 | ~~AdminJS 过渡~~ → **自建轻量后台（2026-11-04 W5 改）** | 直接在 api 加 `admin` 模块、web 加 `/admin` 页：少一个服务与一套登录体系，复用现有 JWT + 账本 + 设计系统；准入靠 `ADMIN_EMAILS`，写操作全部落 `admin_actions`。上线前仍按 §9.2 加 Cloudflare Access 一层 |
 | 托管平台 | **Railway（新加坡区）** | 一键部署多服务、内置 Postgres / Redis，贴近目标用户区域 |
 | 激励广告 SDK | **MVP 不接入** | 保留入口位，Phase 2 接入（网页版 Applixir / AdSense for Games，TMA 内 Adsgram） |
 | UI 落地 | **代码优先** | 无 Figma；令牌与线框见 §3.2 |

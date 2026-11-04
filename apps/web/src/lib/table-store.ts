@@ -5,6 +5,7 @@ import { TABLE_ID_BTC, type EconomyPublic, type PriceTick, type RoundResult, typ
 import { sound } from "@bpredict/ui";
 import { api } from "./api";
 import { useAuth } from "./auth-store";
+import { tr } from "./i18n";
 
 export const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3002";
 const MAX_TICKS = 720;
@@ -24,6 +25,8 @@ export interface MyBet {
 
 export type SettledEvent = Extract<ServerEvent, { t: "round.settled" }>;
 export type PayoutEvent = Extract<ServerEvent, { t: "user.payout" }>;
+export type AnnounceEvent = Extract<ServerEvent, { t: "announce" }> & { id: number };
+const MAX_ANNOUNCEMENTS = 20;
 
 interface TableState {
   connected: boolean;
@@ -41,6 +44,10 @@ interface TableState {
   lastRoundBets: { side: Side; amount: number }[];
   settled: { ev: SettledEvent; payout: PayoutEvent | null; at: number } | null;
   lastPayout: PayoutEvent | null;
+  /** My current win streak as reported by the latest payout (0 until the first payout this session). */
+  myStreak: number;
+  /** Recent table-wide announcements (big bets, streaks, dragons, leader changes), oldest first. */
+  announcements: AnnounceEvent[];
   toasts: Toast[];
 
   connect(tableId?: string): void;
@@ -77,6 +84,8 @@ export const useTable = create<TableState>()((set, get) => ({
   lastRoundBets: [],
   settled: null,
   lastPayout: null,
+  myStreak: 0,
+  announcements: [],
   toasts: [],
 
   now: () => Date.now() + get().serverOffset,
@@ -209,7 +218,7 @@ export const useTable = create<TableState>()((set, get) => ({
           else if (ev.currency === "GEMS") set({ gems: ev.amount });
           break;
         case "user.payout": {
-          set({ lastPayout: ev });
+          set({ lastPayout: ev, myStreak: ev.won ? ev.streak : 0 });
           // settled event for the table may arrive just after; attach payout to the overlay either way
           const cur = get().settled;
           if (cur && cur.ev.roundId === ev.roundId) set({ settled: { ...cur, payout: ev } });
@@ -217,19 +226,23 @@ export const useTable = create<TableState>()((set, get) => ({
           const f = (n: number) => n.toLocaleString("en-US");
           if (ev.won) {
             sound().play("win");
-            get().pushToast("win", `第 ${ev.roundNo} 局 贏 +${f(ev.payout)}${ev.streakBonus ? `（含連勝加成 ${f(ev.streakBonus)}）` : ""}${ev.streak >= 3 ? ` · ${ev.streak} 連勝` : ""}`);
+            get().pushToast("win", tr("table.toastWin", { no: ev.roundNo, n: f(ev.payout) }) + (ev.streakBonus ? tr("table.toastWinBonus", { n: f(ev.streakBonus) }) : "") + (ev.streak >= 3 ? tr("table.toastWinStreak", { n: ev.streak }) : ""));
           } else if (ev.payout === ev.stake) {
             sound().play("void");
-            get().pushToast("void", `第 ${ev.roundNo} 局 和局 / 無效，已退還 ${f(ev.stake)}`);
+            get().pushToast("void", tr("table.toastVoid", { no: ev.roundNo, n: f(ev.stake) }));
           } else {
             sound().play("lose");
-            get().pushToast("lose", `第 ${ev.roundNo} 局 未中，-${f(ev.stake)}`);
+            get().pushToast("lose", tr("table.toastLose", { no: ev.roundNo, n: f(ev.stake) }));
           }
           break;
         }
-        case "announce":
-          get().pushToast("info", ev.text);
+        case "announce": {
+          const item: AnnounceEvent = { ...ev, id: toastSeq++ };
+          set({ announcements: [...s.announcements.slice(-(MAX_ANNOUNCEMENTS - 1)), item] });
+          // Dragons and leader changes are rarer and worth a toast; big bets / streaks stay in the ticker.
+          if (ev.kind === "dragon" || ev.kind === "leader") get().pushToast("info", ev.text);
           break;
+        }
         case "error":
           get().pushToast("error", ev.message);
           break;

@@ -42,6 +42,8 @@ export interface MeResponse {
   user: PublicUser;
   balances: BalanceView[];
   identities: { provider: AuthProvider; email: string | null }[];
+  /** True when one of the user's identities is in ADMIN_EMAILS (ops console access). */
+  isAdmin: boolean;
 }
 
 export interface LedgerEntryView {

@@ -7,5 +7,7 @@ export * from "./settlement";
 export * from "./ws";
 export * from "./rewards";
 export * from "./shop";
+export * from "./leaderboard";
+export * from "./admin";
 export * from "./schemas/auth";
 export * from "./schemas/bets";

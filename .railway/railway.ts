@@ -62,6 +62,8 @@ export default defineRailway((ctx) => {
       NOWPAYMENTS_IPN_SECRET: preserve(),
       STRIPE_SECRET_KEY: preserve(),
       STRIPE_WEBHOOK_SECRET: preserve(),
+      // W5 admin console: comma-separated login emails allowed into /admin (empty = disabled).
+      ADMIN_EMAILS: preserve(),
     },
   });
 

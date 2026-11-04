@@ -43,6 +43,17 @@ const schema = z.object({
   RESEND_FROM: z.string().default("BPredict <onboarding@resend.dev>"),
 
   SENTRY_DSN: z.string().optional(),
+
+  /** Comma-separated identity emails that may use the /admin console (W5). Empty = nobody. */
+  ADMIN_EMAILS: z
+    .string()
+    .default("")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean),
+    ),
 });
 
 export type Env = z.infer<typeof schema>;

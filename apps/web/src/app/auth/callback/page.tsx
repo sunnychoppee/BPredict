@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth-store";
 
 /** Google OAuth lands here with tokens in the URL fragment (never sent to the server). */
 export default function AuthCallbackPage() {
+  const t = useTranslations("login");
   const router = useRouter();
   const setTokens = useAuth((s) => s.setTokens);
   const [failed, setFailed] = useState(false);
@@ -28,10 +30,13 @@ export default function AuthCallbackPage() {
     <main className="flex min-h-screen items-center justify-center text-sm text-cream/70">
       {failed ? (
         <span>
-          登入資料不完整。<a className="underline" href="/login">返回登入</a>
+          {t("callbackIncomplete")}{" "}
+          <a className="underline" href="/login">
+            {t("backToLogin")}
+          </a>
         </span>
       ) : (
-        "登入中…"
+        t("loggingIn")
       )}
     </main>
   );
