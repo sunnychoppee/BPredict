@@ -49,7 +49,9 @@ export default defineRailway((ctx) => {
       API_PUBLIC_URL: urls.api,
       GOOGLE_CALLBACK_URL: `${urls.api}/auth/google/callback`,
       RESEND_FROM: "BPredict <onboarding@resend.dev>",
-      NOWPAYMENTS_SANDBOX: appEnv === "production" ? "false" : "true",
+      // UAT: "true" unless NOWPAYMENTS_ALLOW_LIVE is set (one-off live USDT test — NOWPayments has no sandbox anymore).
+      NOWPAYMENTS_SANDBOX: appEnv === "production" ? "false" : preserve(),
+      NOWPAYMENTS_ALLOW_LIVE: preserve(),
       JWT_SECRET: preserve(),
       JWT_REFRESH_SECRET: preserve(),
       TELEGRAM_BOT_TOKEN: preserve(),

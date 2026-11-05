@@ -32,6 +32,15 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  /**
+   * Escape hatch: NOWPayments discontinued its sandbox, so an end-to-end USDT test has to use
+   * live keys. Setting this to "true" lets a non-production api start with NOWPAYMENTS_SANDBOX=false.
+   * Remove it (and the live keys) from UAT once the test is done.
+   */
+  NOWPAYMENTS_ALLOW_LIVE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
@@ -75,7 +84,10 @@ if (!isProduction) {
     process.exit(1);
   }
   if (env.NOWPAYMENTS_API_KEY && !env.NOWPAYMENTS_SANDBOX) {
-    console.error("Refusing to start: NOWPAYMENTS_SANDBOX must be true outside production");
-    process.exit(1);
+    if (!env.NOWPAYMENTS_ALLOW_LIVE) {
+      console.error("Refusing to start: NOWPAYMENTS_SANDBOX must be true outside production (set NOWPAYMENTS_ALLOW_LIVE=true to override for a one-off live test)");
+      process.exit(1);
+    }
+    console.warn("WARNING: live NOWPayments keys enabled in a non-production environment (NOWPAYMENTS_ALLOW_LIVE=true) — real USDT will move");
   }
 }
