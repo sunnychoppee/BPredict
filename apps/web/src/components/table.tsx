@@ -236,8 +236,8 @@ export function Table() {
         </div>
 
         {/* my stake line */}
-        <div className="mt-2 flex items-center justify-between text-[11px] text-cream/70">
-          <span>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[11px] text-cream/70">
+          <span className="whitespace-nowrap">
             {tt("myStake")}
             <span className="text-banker">
               {tc("banker")} {fmt(myBanker)}
@@ -247,7 +247,7 @@ export function Table() {
               {tc("player")} {fmt(myPlayer)}
             </span>
           </span>
-          {t.economy && <span className="text-cream/45">{tt("limits", { max: fmt(me?.user.isVip ? t.economy.maxBetVip : t.economy.maxBetNormal), fee: (feeRate * 100).toFixed(0) })}</span>}
+          {t.economy && <span className="whitespace-nowrap text-cream/45">{tt("limits", { max: fmt(me?.user.isVip ? t.economy.maxBetVip : t.economy.maxBetNormal), fee: (feeRate * 100).toFixed(0) })}</span>}
         </div>
 
         {/* road (mobile only; desktop uses the right column) */}

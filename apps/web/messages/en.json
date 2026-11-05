@@ -219,6 +219,23 @@
       "STRIPE": "Card",
       "TELEGRAM_STARS": "Stars",
       "DEV": "Test"
+    },
+    "channelLabel": {
+      "NOWPAYMENTS": "USDT (crypto)",
+      "STRIPE": "Card / Apple Pay / Google Pay",
+      "TELEGRAM_STARS": "Telegram Stars",
+      "DEV": "Test payment"
+    },
+    "channelNote": {
+      "NOWPAYMENTS": "Sandbox (testnet)",
+      "STRIPE": "Test mode",
+      "TELEGRAM_STARS": "Telegram only",
+      "DEV": "UAT only, credited instantly"
+    },
+    "productName": {
+      "COINS": "{n} coins",
+      "GEMS": "{n} gems",
+      "VIP": "VIP month"
     }
   },
   "lb": {

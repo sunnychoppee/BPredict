@@ -83,10 +83,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 }
 
 /** Locale-aware date/time helpers (UTC+8 display, matching the reward day boundary). */
+// English uses "Nov 5, 2026" rather than numeric DD/MM vs MM/DD, which reads differently per country.
 export function fmtDate(d: string | number | Date, locale: UiLocale) {
-  return new Date(d).toLocaleDateString(locale === "en" ? "en-GB" : "zh-TW", { timeZone: TIME_ZONE });
+  return locale === "en"
+    ? new Date(d).toLocaleDateString("en-US", { timeZone: TIME_ZONE, year: "numeric", month: "short", day: "numeric" })
+    : new Date(d).toLocaleDateString("zh-TW", { timeZone: TIME_ZONE });
 }
 export function fmtDateTime(d: string | number | Date, locale: UiLocale) {
-  return new Date(d).toLocaleString(locale === "en" ? "en-GB" : "zh-TW", { timeZone: TIME_ZONE, hour12: false });
+  return locale === "en"
+    ? new Date(d).toLocaleString("en-US", { timeZone: TIME_ZONE, year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
+    : new Date(d).toLocaleString("zh-TW", { timeZone: TIME_ZONE, hour12: false });
 }
 export type { Locale };

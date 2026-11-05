@@ -219,6 +219,23 @@
       "STRIPE": "信用卡",
       "TELEGRAM_STARS": "Stars",
       "DEV": "測試"
+    },
+    "channelLabel": {
+      "NOWPAYMENTS": "USDT 加密貨幣",
+      "STRIPE": "信用卡 / Apple Pay / Google Pay",
+      "TELEGRAM_STARS": "Telegram Stars",
+      "DEV": "測試支付"
+    },
+    "channelNote": {
+      "NOWPAYMENTS": "Sandbox（測試網）",
+      "STRIPE": "測試模式",
+      "TELEGRAM_STARS": "僅限 Telegram 內",
+      "DEV": "UAT 專用，立即到帳"
+    },
+    "productName": {
+      "COINS": "{n} 金幣",
+      "GEMS": "{n} 寶石",
+      "VIP": "VIP 月卡"
     }
   },
   "lb": {

@@ -97,6 +97,10 @@ function ShopView() {
   const coinPacks = shop.products.filter((p) => p.type === "COINS");
   const gemPacks = shop.products.filter((p) => p.type === "GEMS");
   const vip = shop.products.find((p) => p.type === "VIP");
+  const productLabel = (o: PaymentView) => {
+    const p = shop.products.find((x) => x.id === o.productId);
+    return p ? productTitle(p, t) : o.productName;
+  };
   // Telegram policy: digital goods bought inside a Mini App must be paid with Stars, so in Telegram we
   // offer only Stars (+ the non-production test channel); on the web we hide Stars (openInvoice is unavailable).
   const enabledChannels = shop.channels.filter((c) => c.enabled && (inTelegram ? c.id === "TELEGRAM_STARS" || c.id === "DEV" : c.id !== "TELEGRAM_STARS"));
@@ -162,7 +166,7 @@ function ShopView() {
               <li key={o.id} className="flex items-center justify-between py-2">
                 <div>
                   <div className="text-cream/90">
-                    {o.productName} <span className="text-[10px] text-cream/45">· {t(`provider.${o.provider}`)}{o.chain ? ` ${o.chain}` : ""}</span>
+                    {productLabel(o)} <span className="text-[10px] text-cream/45">· {t(`provider.${o.provider}`)}{o.chain ? ` ${o.chain}` : ""}</span>
                   </div>
                   <div className="text-[10px] text-cream/45">{fmtDateTime(o.createdAt, locale)}</div>
                 </div>
@@ -231,6 +235,13 @@ function ShopView() {
   );
 }
 
+/** Product names in the DB are zh-Hant; derive a localized title from type + amount. */
+function productTitle(p: ProductView, t: ReturnType<typeof useTranslations<"shop">>) {
+  if (p.type === "COINS") return t("productName.COINS", { n: fmt(p.coins) });
+  if (p.type === "GEMS") return t("productName.GEMS", { n: fmt(p.gems) });
+  return t("productName.VIP");
+}
+
 function ProductCard({ p, firstCharge, mult, onBuy }: { p: ProductView; firstCharge?: boolean; mult?: number; onBuy: () => void }) {
   const tc = useTranslations("common");
   const amount = p.type === "COINS" ? p.coins : p.gems;
@@ -285,9 +296,9 @@ function ChannelSheet({
   }
 
   return (
-    <Sheet onClose={onClose} title={t("buy", { name: product.name })}>
+    <Sheet onClose={onClose} title={t("buy", { name: productTitle(product, t) })}>
       <div className="flex items-center justify-between rounded-lg border border-gold/25 bg-felt-dark/60 px-3 py-2 text-sm">
-        <span className="text-cream/80">{product.name}</span>
+        <span className="text-cream/80">{productTitle(product, t)}</span>
         <span className="num text-gold-bright">
           ${product.priceUsdt.toFixed(2)}
           {provider === "TELEGRAM_STARS" && <span className="ml-1 text-xs text-cream/60">≈ {product.priceStars} ⭐</span>}
@@ -308,9 +319,9 @@ function ChannelSheet({
             >
               <span>
                 {c.id === "NOWPAYMENTS" ? "🪙 " : c.id === "STRIPE" ? "💳 " : c.id === "TELEGRAM_STARS" ? "⭐ " : "🧪 "}
-                {c.label}
+                {t(`channelLabel.${c.id}`)}
               </span>
-              {c.note && <span className="text-[10px] text-cream/50">{c.note}</span>}
+              {c.note && <span className="text-[10px] text-cream/50">{t(`channelNote.${c.id}`)}</span>}
             </button>
           ))}
           {provider === "NOWPAYMENTS" && (
