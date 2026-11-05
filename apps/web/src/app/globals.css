@@ -69,3 +69,9 @@ body {
   pointer-events: none;
   z-index: 50;
 }
+/* Below lg the bottom tab bar (56px + safe area) owns that corner. */
+@media (max-width: 1023px) {
+  .test-watermark::after {
+    bottom: calc(66px + var(--safe-bottom));
+  }
+}

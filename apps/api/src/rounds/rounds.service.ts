@@ -126,7 +126,8 @@ export class RoundsService {
     return { id: result.bet.id, side: result.bet.side, amount: Number(result.bet.amount), created: result.created };
   }
 
-  async cancelBets(roundId: string, userId: string) {
+  /** Refund live bets of this user in the round; `lastOnly` undoes just the most recent one (PRD §"撤销本局最后一笔"). */
+  async cancelBets(roundId: string, userId: string, lastOnly = false) {
     const out = await this.prisma.$transaction(async (tx) => {
       const [round] = await tx.$queryRaw<{ id: string; status: string; lock_at: Date; table_id: string }[]>`
         SELECT id, status, lock_at, table_id FROM rounds WHERE id = ${roundId}::uuid FOR SHARE`;
@@ -136,6 +137,8 @@ export class RoundsService {
       const bets = await tx.$queryRaw<{ id: string; side: Side; amount: bigint }[]>`
         SELECT id, side, amount FROM bets
          WHERE round_id = ${roundId}::uuid AND user_id = ${userId}::uuid AND cancelled_at IS NULL
+         ORDER BY created_at DESC, id DESC
+         LIMIT ${lastOnly ? 1 : 1_000_000}
          FOR UPDATE`;
       const refunded: Record<Side, number> = { BANKER: 0, PLAYER: 0 };
       for (const b of bets) {

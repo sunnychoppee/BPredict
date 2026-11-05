@@ -29,8 +29,8 @@ export class RoundsController {
 
   @Delete("rounds/:roundId/bets")
   @UseGuards(JwtAuthGuard, RateLimitGuard)
-  cancel(@Param("roundId") roundId: string, @CurrentUser() user: AuthUser) {
-    return this.rounds.cancelBets(roundId, user.id);
+  cancel(@Param("roundId") roundId: string, @CurrentUser() user: AuthUser, @Query("scope") scope?: string) {
+    return this.rounds.cancelBets(roundId, user.id, scope === "last");
   }
 
   @Get("rounds/:roundId/bets/me")

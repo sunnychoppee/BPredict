@@ -277,4 +277,6 @@ export const placeBet = (roundId: string, side: Side, amount: number) =>
     body: JSON.stringify({ side, amount, nonce: crypto.randomUUID() }),
   });
 
-export const cancelBets = (roundId: string) => api<{ cancelled: number; refunded: number }>(`/rounds/${roundId}/bets`, { method: "DELETE" });
+/** `scope: "last"` undoes only the most recent bet; `"all"` clears every live bet in the round. */
+export const cancelBets = (roundId: string, scope: "last" | "all" = "all") =>
+  api<{ cancelled: number; refunded: number }>(`/rounds/${roundId}/bets?scope=${scope}`, { method: "DELETE" });

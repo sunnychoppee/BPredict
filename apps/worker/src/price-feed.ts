@@ -75,6 +75,7 @@ export class PriceFeed {
   private active: SourceState | null = null;
   private stopped = false;
   private tickTimer: NodeJS.Timeout | null = null;
+  private ticking = false;
   private lastWrite = 0;
 
   constructor(
@@ -87,7 +88,17 @@ export class PriceFeed {
 
   start() {
     for (const s of this.states) this.connect(s);
-    this.tickTimer = setInterval(() => void this.tick(), 1000);
+    // Ticks must never overlap (a slow Redis round-trip while the network is down would otherwise
+    // let a later tick flip `active` under an earlier one) and must never take the process down.
+    this.tickTimer = setInterval(() => {
+      if (this.ticking) return;
+      this.ticking = true;
+      this.tick()
+        .catch((e) => log.warn("feed", `tick failed: ${(e as Error).message}`))
+        .finally(() => {
+          this.ticking = false;
+        });
+    }, 1000);
     log.info("feed", `started for ${this.symbol} (${SOURCES.map((s) => s.name).join(" → ")})`);
   }
 
@@ -185,9 +196,10 @@ export class PriceFeed {
       this.active = next;
     }
 
-    if (this.active) {
+    const a = this.active;
+    if (a && a.price != null) {
       await this.writeLatest(now, true);
-      const ev: ServerEvent = { t: "price.tick", tableId: this.tableId, price: this.active.price!, source: this.active.def.name, ts: this.active.exchangeTs };
+      const ev: ServerEvent = { t: "price.tick", tableId: this.tableId, price: a.price, source: a.def.name, ts: a.exchangeTs };
       await publish(this.redis, tableChannel(this.tableId, "price.tick"), ev);
       // 1 s history for the chart (≈ 10 min)
       try {

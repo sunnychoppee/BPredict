@@ -142,12 +142,12 @@ export function Table() {
     }
   }
 
-  async function onCancel() {
+  async function onCancel(scope: "last" | "all") {
     if (!betting) return;
-    setBusy("cancel");
+    setBusy(scope === "last" ? "cancel" : "clear");
     try {
       sound().play("cancel");
-      await cancelBets(betting.id);
+      await cancelBets(betting.id, scope);
       await t.refreshMyBets();
     } catch (e) {
       fail(e, tt("cancelFailed"));
@@ -194,7 +194,7 @@ export function Table() {
 
         {/* chart */}
         <div className="mt-2 rounded-lg border border-gold/20 bg-felt-dark/40 px-1 pt-1">
-          <PriceChartClient ticks={t.ticks} lockPrice={locked?.lockPrice ?? null} height={120} />
+          <PriceChartClient ticks={t.ticks} lockPrice={locked?.lockPrice ?? null} lockLabel={tt("lockLine")} height={120} />
         </div>
 
         {/* tug of war */}
@@ -276,15 +276,18 @@ export function Table() {
             </span>
           ))}
         </div>
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="mt-3 grid grid-cols-4 gap-2">
           <GoldButton variant="outline" disabled={!canBet || !t.lastRoundBets.length} onClick={() => void onRepeat()}>
             {busy === "repeat" ? "…" : tt("repeat")}
           </GoldButton>
           <GoldButton variant="outline" disabled={!canBet || !t.myBets.length} onClick={() => void onDouble()}>
             {busy === "double" ? "…" : tt("double")}
           </GoldButton>
-          <GoldButton variant="outline" disabled={!betting || !t.myBets.length || !!busy} onClick={() => void onCancel()}>
+          <GoldButton variant="outline" disabled={!betting || !t.myBets.length || !!busy} onClick={() => void onCancel("last")}>
             {busy === "cancel" ? "…" : tt("undo")}
+          </GoldButton>
+          <GoldButton variant="outline" disabled={!betting || !t.myBets.length || !!busy} onClick={() => void onCancel("all")}>
+            {busy === "clear" ? "…" : tt("clear")}
           </GoldButton>
         </div>
 

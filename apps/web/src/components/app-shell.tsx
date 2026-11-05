@@ -60,7 +60,8 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
         <div className={`mx-auto flex items-center justify-between gap-3 px-3 py-2 ${wide ? "max-w-6xl" : "max-w-md lg:max-w-6xl"}`}>
           <Link href="/" className="flex items-center gap-2">
             <span className="font-display text-lg tracking-wide text-gold">莊閒</span>
-            <span className={`h-1.5 w-1.5 rounded-full ${t.connected ? "bg-emerald-400" : "bg-banker animate-pulse"}`} />
+            {/* Live-feed indicator only where the WS is actually used (table page). */}
+            {pathname === "/" && <span className={`h-1.5 w-1.5 rounded-full ${t.connected ? "bg-emerald-400" : "bg-banker animate-pulse"}`} />}
           </Link>
 
           <div className="hidden items-center gap-1 lg:flex">

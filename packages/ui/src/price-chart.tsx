@@ -8,6 +8,8 @@ export interface PriceChartProps {
   /** Oldest → newest. Only the last `windowSec` seconds are shown. */
   ticks: PriceTick[];
   lockPrice?: number | null;
+  /** Axis label for the lock-price line (default 鎖盤). */
+  lockLabel?: string;
   height?: number;
   windowSec?: number;
   className?: string;
@@ -17,7 +19,7 @@ export interface PriceChartProps {
  * BTC price area chart (lightweight-charts) with the lock price as a dashed baseline.
  * Line colour follows the side currently "winning" vs. the lock price.
  */
-export function PriceChart({ ticks, lockPrice, height = 120, windowSec = 600, className = "" }: PriceChartProps) {
+export function PriceChart({ ticks, lockPrice, lockLabel = "鎖盤", height = 120, windowSec = 600, className = "" }: PriceChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Area"> | null>(null);
@@ -99,9 +101,9 @@ export function PriceChart({ ticks, lockPrice, height = 120, windowSec = 600, cl
       lockLine.current = null;
     }
     if (lockPrice != null) {
-      lockLine.current = s.createPriceLine({ price: lockPrice, color: "rgba(244,232,193,.85)", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "鎖盤" });
+      lockLine.current = s.createPriceLine({ price: lockPrice, color: "rgba(244,232,193,.85)", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: lockLabel });
     }
-  }, [lockPrice]);
+  }, [lockPrice, lockLabel]);
 
   return <div ref={el} className={`w-full ${className}`} style={{ height }} />;
 }
