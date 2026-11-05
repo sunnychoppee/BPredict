@@ -50,7 +50,9 @@ export class NowPaymentsProvider implements PaymentProviderAdapter {
       ipn_callback_url: `${env.API_PUBLIC_URL}/webhooks/nowpayments`,
       success_url: `${env.WEB_URL}/shop?order=${ctx.payment.id}&result=success`,
       cancel_url: `${env.WEB_URL}/shop?order=${ctx.payment.id}&result=cancel`,
-      is_fixed_rate: true,
+      // Floating rate: USDT→USDT carries no rate risk, and fixed rate roughly doubles NOWPayments'
+      // minimum (e.g. usdtbsc 0.09 → 8.5 USD, usdttrc20 10.8 → 19.3 USD) and raises the fee 1% → 1.5%.
+      is_fixed_rate: false,
       is_fee_paid_by_user: false,
     };
     const res = await httpJson<InvoiceResponse>(`${this.baseUrl}/invoice`, {
