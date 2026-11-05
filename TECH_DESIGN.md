@@ -325,6 +325,7 @@ Webhook 流程：验签 → 查 `payments` 订单 → 状态迁移（PENDING →
 - **运营后台**：**改为 api 内 `admin` 模块 + web `/admin` 页，不再起 AdminJS 独立服务**（见 §13 决策更新）。鉴权 `AdminGuard`：Bearer token 有效且用户任一 identity email ∈ `ADMIN_EMAILS`（每次请求查库，撤权即时生效；列表为空则整个后台 403）。所有写操作先执行再 `admin_actions` 落库；余额调整只能经 `LedgerService.post(type: ADMIN_ADJUST)`，key `admin:{adminId}:{ts}:{rand}`，余额不足时拒绝（账本非负约束）。经济参数写入前校验 JSON 类型与 `DEFAULT_ECONOMY` 一致并 `EconomyService.invalidate()`；worker 侧 30 s 缓存自然过期。
 - **i18n**：`next-intl` 仅用客户端 `NextIntlClientProvider`（不走 `[locale]` 路由，Telegram Mini App 的 URL 保持不变），语言状态在 zustand（`apps/web/src/lib/i18n.tsx`），非 React 代码（WS toast）用 `createTranslator` 的 `tr()`。`packages/ui` 组件新增 `labels` 入参以保持无依赖。`LOCALES` 里的 `zh-Hans` 暂映射到繁中字典。
 - **未做 / 后续**：排行奖励（前三名宝石 / 头像框）与好友榜；后台的局作废 / 重算、群发公告、导出；admin 操作二次确认与 2FA（上线前配合 Cloudflare Access）。
+- **UAT 走查修正（2026-11-05）**：`DELETE /rounds/:id/bets?scope=last` 只退最近一笔，牌桌「撤銷」改为撤最后一笔、新增「清空」撤全部（对齐 PRD §"撤销本局最后一笔 / 锁盘前可撤销全部"）；worker 行情 `tick` 改为不重入 + 捕获异常（三家交易所同时超时时曾因 `active` 被并发 tick 置空而崩溃）；TEST 水印在手机上移到底部 Tab 之上；英文界面补齐图表锁盘标签、支付渠道名、商品名、日期格式。UAT 测试账号用 ssh 进 api 容器直接写 `magic_links` 生成登录链接（不经 Resend）。
 
 ---
 
