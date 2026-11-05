@@ -40,6 +40,7 @@ export class NowPaymentsProvider implements PaymentProviderAdapter {
   async createCheckout(ctx: CheckoutContext): Promise<CheckoutResult> {
     if (!ctx.chain) throw new BadRequestException("請選擇 USDT 網路");
     const payCurrency = NOWPAYMENTS_CHAIN_CURRENCY[ctx.chain];
+    await this.assertAboveMinimum(payCurrency, Number(ctx.product.priceUsdt), ctx.chain);
     const body = {
       price_amount: Number(ctx.product.priceUsdt),
       price_currency: "usd",
@@ -65,5 +66,28 @@ export class NowPaymentsProvider implements PaymentProviderAdapter {
       meta: { payCurrency, sandbox: env.NOWPAYMENTS_SANDBOX },
       next: { kind: "redirect", url: res.invoice_url },
     };
+  }
+
+  /**
+   * NOWPayments enforces a per-currency minimum that depends on the merchant's payout wallet
+   * (e.g. ~11 USDT when everything settles to USDT-TRC20). The hosted invoice page renders blank
+   * when the amount is below it, so check first and fail with a readable message. Fails open on
+   * network errors — the invoice call will surface a hard error anyway.
+   */
+  private async assertAboveMinimum(payCurrency: string, priceUsd: number, chain: UsdtChain) {
+    let min: { min_amount?: number; fiat_equivalent?: number };
+    try {
+      min = await httpJson(`${this.baseUrl}/min-amount?currency_from=${payCurrency}&fiat_equivalent=usd`, {
+        headers: { "x-api-key": env.NOWPAYMENTS_API_KEY! },
+        timeoutMs: 8_000,
+      });
+    } catch {
+      return;
+    }
+    const minUsd = Number(min.fiat_equivalent ?? 0);
+    if (minUsd > 0 && priceUsd < minUsd) {
+      const minUsdt = Number(min.min_amount ?? minUsd).toFixed(2);
+      throw new BadRequestException(`USDT（${chain}）單筆最低 ${minUsdt} USDT，請選擇更高的方案或其他網路`);
+    }
   }
 }
