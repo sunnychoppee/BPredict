@@ -299,7 +299,7 @@ Webhook 流程：验签 → 查 `payments` 订单 → 状态迁移（PENDING →
 
 | 渠道 | 实现要点 |
 | :--- | :--- |
-| USDT 收单 | **NOWPayments**（已确认，备选 Cryptomus）；MVP 开 TRC20 / BEP20 / TON；`POST /v1/payment` 按订单生成地址，IPN 回调以 `x-nowpayments-sig`（HMAC-SHA512）验签；状态 `finished` 入账、`partially_paid` 按比例入账、`expired` 关闭；先用 sandbox 环境联调 |
+| USDT 收单 | **NOWPayments**（已确认，备选 Cryptomus）；MVP 开 TRC20 / BEP20 / TON；`POST /v1/payment` 按订单生成地址，IPN 回调以 `x-nowpayments-sig`（HMAC-SHA512）验签；状态 `finished` 入账、`partially_paid` 按比例入账、`expired` 关闭；浮动汇率（固定汇率会使最低额翻倍）；下单前查 `/v1/min-amount`；无 Sandbox，已用正式 API 小额验证 |
 | Stripe | Checkout Session；`checkout.session.completed` 入账；`charge.dispute.created` 冻结购买能力 |
 | Telegram Stars | Bot API `createInvoiceLink`；处理 `pre_checkout_query`（校验 SKU 与价格）与 `successful_payment`；以 `telegram_payment_charge_id` 幂等 |
 
@@ -315,7 +315,7 @@ Webhook 流程：验签 → 查 `payments` 订单 → 状态迁移（PENDING →
 - **结算 `ShopService.settle()`**：事务内读订单 → 只处理 `PENDING` → 计算入账（`ratio` 1 = 全额，`partially_paid` 按 `actually_paid / pay_amount`；首充仅整额金币包、以 `user_rewards.first_charge_at IS NULL` 的条件更新抢占一次；VIP 从 `max(now, vip_expires_at)` 起加 30 天）→ 条件更新订单到终态 → 账本 `payment:{orderId}:coins|gems` → 事务外推送 `user.balance`。重放 / 并发回调仅入账一次（已用脚本验证 Stripe、NOWPayments finished / partially_paid、Stars 重放）。
 - **Webhook 验签**：Nest `rawBody: true`；Stripe 以 `t.rawBody` HMAC-SHA256、300 s 容忍；NOWPayments 以排序键 JSON 的 HMAC-SHA512；Telegram 以 `X-Telegram-Bot-Api-Secret-Token` 常量时间比较。验签失败 403，未配置渠道 503，业务映射异常不抛（记日志、回 200 以免服务商无限重试）。
 - **前端**：`/rewards` 7 格签到条 + 补给能量格倒计时 + VIP / 救济卡片；`/shop` 商品卡（首充时显示 ×2 对比价）、渠道选择 sheet（USDT 链、信用卡、Stars 仅 Telegram 内、测试支付仅非 production）、托管收银台以 `?order=<id>&result=` 回跳后轮询订单直至终态；购买记录列表。头部余额在非牌桌页无 WS，购买成功后主动拉 `/me/balances` 刷新。
-- **未做 / 后续**：`charge.dispute.created` 仅告警未冻结；赛季通行证、皮肤类商品未上架（W5+）；Bot `/start` 仅回一句欢迎语；NOWPayments 因官方停掉 Sandbox，端到端只能在 production 验证（见 §9.8）；Telegram Stars 真实付款待在 Mini App 内用少量 Stars 验证。
+- **未做 / 后续**：`charge.dispute.created` 仅告警未冻结；赛季通行证、皮肤类商品未上架（W5+）；Bot `/start` 仅回一句欢迎语；NOWPayments 已用正式 API 在 UAT 小额验证通过（见 §9.8）；待办：IPN `payin_hash` 落库到 `payments.tx_hash`；USDT 渠道按 `/v1/min-amount` 隐藏低于限额的档位（TRC20 下 $5 / $9.99 / $10 不可付）；Telegram Stars 真实付款待在 Mini App 内用少量 Stars 验证。
 
 ### 7.5 实现备注（W5 as-built，2026-11-04：排行、记录、公告、后台、i18n）
 
@@ -460,7 +460,7 @@ MVP 全部跑在 Railway 新加坡区。需要扩容时：`api` / `ws` 直接加
 | Google Cloud OAuth | 网页登录 | Web 应用客户端 ID + Secret（已建，Testing 模式）；测试用户：`sean.zhang.yi@gmail.com`、`zhang.yi9999@gmail.com`、`seanzhclawd@gmail.com` |
 | Resend | 邮箱魔法链接 | API Key；UAT 可用 Resend 测试发件，生产再绑域名 |
 | Railway | W2 UAT | 账号 + 信用卡；Project 选新加坡区 |
-| NOWPayments | W4 → 上线前 | NOWPayments 已停止 Sandbox 服务（2026-11-05 在线客服确认），UAT 不配置此渠道；代码已就绪并以本地签名重放验证，production 开通正式账号后填 API Key + IPN Secret（IPN URL `<API_PUBLIC_URL>/webhooks/nowpayments`），首笔用小额真实 USDT 验证 |
+| NOWPayments | W4 → 上线前 | NOWPayments 已停止 Sandbox 服务（2026-11-05 在线客服确认）。**已于 2026-11-05 用正式 API 在 UAT 端到端验证**（`NOWPAYMENTS_ALLOW_LIVE=true` 临时放行）：TRC20 $12 与 BEP20 $5 两笔真实 USDT，IPN `waiting → sending → finished`、验签、全额入账、账本幂等均正确。关键结论：① 账号是 **Custody** 模式，最低限额由「支付币种 → Primary Balance 币种」决定，Primary Balance 为 USDTTRC20 时所有链最低 ~11 USD；改为 USDTBSC 后 usdtbsc 0.09 / usdtton 0.23 USDT，而 **usdttrc20 本身最低 ~10.8 USDT**（TRON 网络限制）；② `is_fixed_rate` 会让最低额翻倍、费率 1% → 1.5%，已改为浮动汇率；③ 下单前先查 `/v1/min-amount` 并给出可读错误（否则托管收银页空白）。Production 开通时：填 API Key + IPN Secret（IPN URL `<API_PUBLIC_URL>/webhooks/nowpayments`），Custody Primary Balance 设为 USDTBSC |
 | Stripe | W4 | **Test** 模式 Secret `sk_test_…` + Webhook 签名密钥（endpoint `https://api-uat-123a.up.railway.app/webhooks/stripe`）；代码已就绪，待填入 Railway 变量 |
 | Telegram Stars | W4 | 无需额外申请；Railway 设 `TELEGRAM_WEBHOOK_SECRET` 后 api 自动 `setWebhook`。Stars 测试需 BotFather 开 Test Server 或直接用少量真实 Stars |
 | Sentry | W2 起 | 组织 + `web` / `api` / `worker` 三个 DSN（可先一个项目） |

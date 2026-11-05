@@ -100,7 +100,7 @@ from users u join balances b on b.user_id=u.id and b.currency='COINS';
 
   | 渠道 | 下單 | 回調 | 啟用條件（缺任一即不在商店顯示） |
   | :--- | :--- | :--- | :--- |
-  | NOWPayments（USDT TRC20 / BEP20 / TON） | `POST /v1/invoice`，`order_id` = 我方訂單 id | `POST /webhooks/nowpayments`，`x-nowpayments-sig` = HMAC-SHA512(排序後 JSON)；`finished` 全額入帳、`partially_paid` 按比例入帳、`expired` 關單 | `NOWPAYMENTS_API_KEY` + `NOWPAYMENTS_IPN_SECRET` + `API_PUBLIC_URL`；非 production 強制 `NOWPAYMENTS_SANDBOX=true` |
+  | NOWPayments（USDT TRC20 / BEP20 / TON） | `POST /v1/invoice`（浮動匯率；先查 `/v1/min-amount`，低於限額直接回可讀錯誤），`order_id` = 我方訂單 id | `POST /webhooks/nowpayments`，`x-nowpayments-sig` = HMAC-SHA512(排序後 JSON)；`finished` 全額入帳、`partially_paid` 按比例入帳、`expired` 關單 | `NOWPAYMENTS_API_KEY` + `NOWPAYMENTS_IPN_SECRET` + `API_PUBLIC_URL`；非 production 需 `NOWPAYMENTS_SANDBOX=true`，或 `NOWPAYMENTS_ALLOW_LIVE=true` 臨時放行。已於 2026-11-05 以正式 API 在 UAT 驗證（TRC20 $12、BEP20 $5）；帳號為 Custody 模式，Primary Balance 應設 USDTBSC，否則所有鏈最低 ~11 USD；usdttrc20 本身最低 ~10.8 USDT |
   | Stripe（Checkout） | REST 建 Checkout Session（不用 SDK） | `POST /webhooks/stripe`，`Stripe-Signature` 以 raw body 驗簽（300 s 容忍）；`checkout.session.completed` 入帳、`expired` 關單、`charge.dispute.created` 目前只記警告 | `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`；非 production 拒絕 `sk_live_` |
   | Telegram Stars（僅 Mini App 內顯示） | Bot API `createInvoiceLink`（XTR），前端 `Telegram.WebApp.openInvoice` | `POST /webhooks/telegram`，`X-Telegram-Bot-Api-Secret-Token`；`pre_checkout_query` 核對訂單 / 價格後 `answerPreCheckoutQuery`，`successful_payment` 以 `telegram_payment_charge_id` 幂等入帳。api 啟動時自動 `setWebhook` | `TELEGRAM_BOT_TOKEN` + `TELEGRAM_WEBHOOK_SECRET` + `API_PUBLIC_URL` |
   | 測試支付（DEV） | 下單即入帳 | — | `APP_ENV !== production`（UAT / 本機用來驗證入帳流程） |
