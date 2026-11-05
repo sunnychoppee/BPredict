@@ -315,7 +315,7 @@ Webhook 流程：验签 → 查 `payments` 订单 → 状态迁移（PENDING →
 - **结算 `ShopService.settle()`**：事务内读订单 → 只处理 `PENDING` → 计算入账（`ratio` 1 = 全额，`partially_paid` 按 `actually_paid / pay_amount`；首充仅整额金币包、以 `user_rewards.first_charge_at IS NULL` 的条件更新抢占一次；VIP 从 `max(now, vip_expires_at)` 起加 30 天）→ 条件更新订单到终态 → 账本 `payment:{orderId}:coins|gems` → 事务外推送 `user.balance`。重放 / 并发回调仅入账一次（已用脚本验证 Stripe、NOWPayments finished / partially_paid、Stars 重放）。
 - **Webhook 验签**：Nest `rawBody: true`；Stripe 以 `t.rawBody` HMAC-SHA256、300 s 容忍；NOWPayments 以排序键 JSON 的 HMAC-SHA512；Telegram 以 `X-Telegram-Bot-Api-Secret-Token` 常量时间比较。验签失败 403，未配置渠道 503，业务映射异常不抛（记日志、回 200 以免服务商无限重试）。
 - **前端**：`/rewards` 7 格签到条 + 补给能量格倒计时 + VIP / 救济卡片；`/shop` 商品卡（首充时显示 ×2 对比价）、渠道选择 sheet（USDT 链、信用卡、Stars 仅 Telegram 内、测试支付仅非 production）、托管收银台以 `?order=<id>&result=` 回跳后轮询订单直至终态；购买记录列表。头部余额在非牌桌页无 WS，购买成功后主动拉 `/me/balances` 刷新。
-- **未做 / 后续**：`charge.dispute.created` 仅告警未冻结；赛季通行证、皮肤类商品未上架（W5+）；Bot `/start` 仅回一句欢迎语。
+- **未做 / 后续**：`charge.dispute.created` 仅告警未冻结；赛季通行证、皮肤类商品未上架（W5+）；Bot `/start` 仅回一句欢迎语；NOWPayments 因官方停掉 Sandbox，端到端只能在 production 验证（见 §9.8）；Telegram Stars 真实付款待在 Mini App 内用少量 Stars 验证。
 
 ### 7.5 实现备注（W5 as-built，2026-11-04：排行、记录、公告、后台、i18n）
 
@@ -459,7 +459,7 @@ MVP 全部跑在 Railway 新加坡区。需要扩容时：`api` / `ws` 直接加
 | Google Cloud OAuth | 网页登录 | Web 应用客户端 ID + Secret（已建，Testing 模式）；测试用户：`sean.zhang.yi@gmail.com`、`zhang.yi9999@gmail.com`、`seanzhclawd@gmail.com` |
 | Resend | 邮箱魔法链接 | API Key；UAT 可用 Resend 测试发件，生产再绑域名 |
 | Railway | W2 UAT | 账号 + 信用卡；Project 选新加坡区 |
-| NOWPayments | W4 | **Sandbox** API Key + IPN Secret（`account-sandbox.nowpayments.io`；IPN URL `https://api-uat-123a.up.railway.app/webhooks/nowpayments`）；代码已就绪，待填入 Railway 变量 |
+| NOWPayments | W4 → 上线前 | NOWPayments 已停止 Sandbox 服务（2026-11-05 在线客服确认），UAT 不配置此渠道；代码已就绪并以本地签名重放验证，production 开通正式账号后填 API Key + IPN Secret（IPN URL `<API_PUBLIC_URL>/webhooks/nowpayments`），首笔用小额真实 USDT 验证 |
 | Stripe | W4 | **Test** 模式 Secret `sk_test_…` + Webhook 签名密钥（endpoint `https://api-uat-123a.up.railway.app/webhooks/stripe`）；代码已就绪，待填入 Railway 变量 |
 | Telegram Stars | W4 | 无需额外申请；Railway 设 `TELEGRAM_WEBHOOK_SECRET` 后 api 自动 `setWebhook`。Stars 测试需 BotFather 开 Test Server 或直接用少量真实 Stars |
 | Sentry | W2 起 | 组织 + `web` / `api` / `worker` 三个 DSN（可先一个项目） |

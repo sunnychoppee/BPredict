@@ -155,7 +155,7 @@ Windows 上 `railway config plan/apply` 若報「TypeScript SDK requires CLI ≥
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | api | Google Console（已加 `https://api-uat-123a.up.railway.app/auth/google/callback` 到重新導向 URI 才能用 Google 登入） |
 | `RESEND_API_KEY` | api | Resend |
 | `API_PUBLIC_URL` | api | `https://api-uat-123a.up.railway.app`（非機密，支付回調 / Telegram webhook 需要） |
-| `NOWPAYMENTS_API_KEY` / `NOWPAYMENTS_IPN_SECRET` | api | NOWPayments **Sandbox**（`account-sandbox.nowpayments.io`）；IPN URL 填 `<API_PUBLIC_URL>/webhooks/nowpayments` |
+| `NOWPAYMENTS_API_KEY` / `NOWPAYMENTS_IPN_SECRET` | api | **UAT 留空**：NOWPayments 已停止提供 Sandbox（2026-11-05 客服確認），USDT 渠道只能在 production 用正式金鑰驗證（IPN URL `<API_PUBLIC_URL>/webhooks/nowpayments`）；回調處理已用本地簽名重放測試覆蓋 |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | api | Stripe **Test** 模式 `sk_test_…`；Webhook endpoint `<API_PUBLIC_URL>/webhooks/stripe`，事件 `checkout.session.completed`、`checkout.session.expired`、`charge.dispute.created` |
 | `TELEGRAM_WEBHOOK_SECRET` | api | 隨機 32+ 字元；api 啟動時會對 `@BacPredict_bot` `setWebhook` |
 | `ADMIN_EMAILS` | api | 可進 `/admin` 的登入 email（逗號分隔，小寫）；留空 = 後台關閉 |
