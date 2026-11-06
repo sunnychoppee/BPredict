@@ -28,13 +28,15 @@ const env = z
     REDIS_URL: z.string().default("redis://localhost:6379"),
     JWT_SECRET: z.string().min(16),
     WEB_URL: z.string().optional(),
+    /** Per-IP connection cap. Raise temporarily for load tests that originate from one address. */
+    WS_MAX_CONN_PER_IP: z.coerce.number().int().positive().default(20),
   })
   .parse(process.env);
 
 const PORT = env.PORT ?? env.WS_PORT;
 const HEARTBEAT_MS = 15_000;
 const POOL_THROTTLE_MS = 250;
-const MAX_CONN_PER_IP = 20;
+const MAX_CONN_PER_IP = env.WS_MAX_CONN_PER_IP;
 
 interface Client {
   ws: WebSocket;
