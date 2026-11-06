@@ -117,6 +117,15 @@ from users u join balances b on b.user_id=u.id and b.currency='COINS';
 - **i18n**：`next-intl`（無路由前綴，純客戶端 provider），字典在 `apps/web/messages/{zh-Hant,en}.json`。語言來源：localStorage `bp.locale` → 用戶 profile → 瀏覽器語言（zh* → 繁中，其餘英文）。莊 / 閒 兩個大字與路紙珠子保留中文（百家樂慣例）。
 - **管理後台 `/admin`**（取代原規劃的 AdminJS 獨立服務，見 TECH_DESIGN §7.5）：登入 email 在 `ADMIN_EMAILS`（逗號分隔）內的帳號才看得到入口、API `AdminGuard` 每次請求重新核對。功能：總覽（用戶 / 金幣流通 / 今日局數 / 支付）、經濟參數熱更（JSON 值、型別須與預設一致，30 s 內生效）、商品上下架 / 改價、用戶搜尋（暱稱 / email / id）→ 餘額 / 戰績 / 帳本、**手動調整餘額（走帳本 `ADMIN_ADJUST`，不直寫 `balances`）**、凍結 / 解凍、加減 VIP 天數、支付列表（可按狀態篩）、開獎列表、操作稽核（所有寫操作落 `admin_actions`）。本機測試：`.env` 設 `ADMIN_EMAILS=admin@dev.local` 後用開發登入暱稱 `admin`。
 
+## Telegram Mini App 打包、Sentry、負載與混沌測試（W6 已完成）
+
+- **Mini App 外觀**（`apps/web/src/lib/telegram.ts`、`components/app-shell.tsx`）：iOS / Android 且 Bot API ≥ 8.0 時 `requestFullscreen()`，`safeAreaInset + contentSafeAreaInset` 寫入 CSS 變數 `--safe-top / --safe-bottom`（頂欄 sticky 到 `--safe-top`、底部 Tab 加 padding）；子頁顯示 Telegram `BackButton`（有歷史就 `router.back()`，否則回牌桌）；有未結注時 `enableClosingConfirmation()`；下注 / 派彩觸發 `HapticFeedback`。桌面版 Telegram 與一般瀏覽器自動跳過這些呼叫。
+- **Bot**（`apps/api/src/shop/providers/telegram-stars.provider.ts`）：api 啟動時若 `WEB_URL` 是 https 會自動 `setChatMenuButton`（「開啟牌桌」web_app 按鈕）、`setMyCommands`（/start、/help）、`setMyDescription` / `setMyShortDescription`；`/start`、`/help` 回覆附帶開啟 Mini App 的 inline 按鈕。所以 **BotFather 只需填 Mini App URL 一次**（Menu Button 由程式維護）；想要 `t.me/<bot>/<app>` 直達連結再到 BotFather `/newapp` 建一個 Web App 指向同一個 URL（非必要）。
+- **Sentry**（全部以 DSN 為開關，沒設就完全不初始化）：api `@sentry/nestjs`（`src/instrument.ts` 最先 import；`SentryExceptionFilter` 只上報 5xx / 非 HttpException；`beforeSend` 去掉 authorization / cookie / 各家 webhook 簽章標頭）、worker / ws `@sentry/node`（worker `log.error` 會 `captureException`）、web `@sentry/nextjs`（`instrumentation-client.ts` / `instrumentation.ts` / `app/global-error.tsx`，URL query 會被清掉）。環境標籤 = `APP_ENV`，release = `RAILWAY_GIT_COMMIT_SHA`；traces 取樣 production 5%、其他 20%。
+- **負載測試**（腳本在倉庫外 `%TEMP%\bpredict\load.mjs`：每用戶一條 WS + 每 2–4 s 一筆 REST 下注，300 個 `load-<i>@bpredict.test` 帳號，2026-11-06 對 UAT）：300 用戶 6 分鐘 22,864 筆下注，**0 × 5xx、0 × 429**；p50 ≈ 217 ms（≈ 往返延遲）、p95 1–1.6 s、p99 3–4 s；300 條 WS 全程穩定、54.6 萬則訊息，鎖盤 / 結算推送到 300 個客戶端的散佈 < 0.5 s。瓶頸是下注對 round 列的 `FOR UPDATE` 序列化與結算逐筆帳本（≈ 18 ms / 贏家）。結算 300 名贏家 3.5–6 s 曾把下一局鎖盤拖晚 4.4 s，已把 worker tick 改為「先鎖盤、再開新局、最後結算」（`72d441c`），之後鎖盤延遲穩定在 0.3–1.0 s。
+- **混沌測試**（150 用戶負載持續中）：worker 重新部署於局中 → 新實例 69 s 後取得 leader（Railway 新舊實例重疊、舊實例收到 SIGTERM 才釋放鎖），該局仍準時鎖盤、無重複結算；ws 重新部署 → 所有連線以 1001 關閉，客戶端 1 s → 15 s 退避重連；api 重新部署於局中 → **0 × 5xx、0 條網路錯誤**（Railway 零停機切換），該局 8,210 筆注照常鎖盤 / 結算。行情斷流未實測，僅代碼走查：三家交易所皆超時 → `PRICE_GRACE_MS` 內無價即作廢該局，`FEED_DOWN_PAUSE_MS`（60 s）內不開新局。
+- 負載 / 混沌期間 UAT ws 臨時設過 `WS_MAX_CONN_PER_IP=2000`，測完已移除並重啟（預設 20 / IP）。
+
 ## UAT 部署（Railway，新加坡）
 
 Railway Project `bpredict`、Environment `uat`，整個環境由 **`.railway/railway.ts`（Infrastructure as Code）** 描述：Postgres、Redis、`api` / `ws` / `worker` / `web` 四個 GitHub 服務、build / start / pre-deploy / healthcheck、區域 `sin`、非機密變數。Railway 舊的 `railway.json` config-as-code 已廢棄，新服務不會讀取。
@@ -159,8 +168,11 @@ Windows 上 `railway config plan/apply` 若報「TypeScript SDK requires CLI ≥
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | api | Stripe **Test** 模式 `sk_test_…`；Webhook endpoint `<API_PUBLIC_URL>/webhooks/stripe`，事件 `checkout.session.completed`、`checkout.session.expired`、`charge.dispute.created` |
 | `TELEGRAM_WEBHOOK_SECRET` | api | 隨機 32+ 字元；api 啟動時會對 `@BacPredict_bot` `setWebhook` |
 | `ADMIN_EMAILS` | api | 可進 `/admin` 的登入 email（逗號分隔，小寫）；留空 = 後台關閉 |
+| `SENTRY_DSN` | api、ws、worker | Sentry 專案 DSN（三個服務可共用一個或各建一個）；未設 = 不上報 |
+| `NEXT_PUBLIC_SENTRY_DSN` | web | 瀏覽器端 DSN（會公開在前端 bundle，屬非機密）；未設 = 不上報。**web 是 build-time 變數，設完要重新 build** |
+| `WS_MAX_CONN_PER_IP` | ws | 每 IP WS 連線上限，預設 20；只在負載測試時臨時調高 |
 
-沒設定的渠道在商店中不會出現；UAT 永遠只用 sandbox / test 金鑰，api 啟動時若在非 production 偵測到 `sk_live_` 或 `NOWPAYMENTS_SANDBOX=false` 會直接拒絕啟動。
+沒設定的渠道在商店中不會出現；UAT 永遠只用 sandbox / test 金鑰，api 啟動時若在非 production 偵測到 `sk_live_` 或 `NOWPAYMENTS_SANDBOX=false` 會直接拒絕啟動（NOWPayments 可用 `NOWPAYMENTS_ALLOW_LIVE=true` 明確放行，啟動日誌會有警告）。
 
 設定方式用**參數形式**：`railway variable set "KEY=value" --service api --skip-deploys`。**不要**在 Windows PowerShell 用 `--stdin`，它會在值前面塞一個 BOM（U+FEFF），Resend / JWT 會因此壞掉。
 
@@ -172,6 +184,6 @@ Windows 上 `railway config plan/apply` 若報「TypeScript SDK requires CLI ≥
 ### 部署後檢查
 
 1. `https://api-uat-123a.up.railway.app/health` 回 `ok`；`https://ws-uat.up.railway.app/health` 回 `{"status":"ok"}`；`railway logs --service worker -d` 看到 `acquired leadership` 與整點 `LOCKED` / `SETTLED`。
-2. BotFather → `@BacPredict_bot` → Bot Settings → Menu Button / Mini App URL = `https://web-uat-3b0f.up.railway.app`。
-3. 瀏覽器開 web 看到 TEST 水印；Telegram 內開 bot 自動登入。
+2. BotFather → `@BacPredict_bot` → Bot Settings → Mini App URL = `https://web-uat-3b0f.up.railway.app`（Menu Button、指令與簡介由 api 啟動時自動設定，見 W6 一節；api 日誌應有 `telegram bot profile configured`）。
+3. 瀏覽器開 web 看到 TEST 水印；Telegram 內開 bot 送 `/start` 看到「開啟牌桌」按鈕，點開後自動登入；手機上應為全螢幕且頂欄避開 Telegram 的關閉 / 更多按鈕。
 4. 每次 push `main`，Railway 自動重新部署 4 個服務。**前提**：Railway 的 GitHub App 必須對 `sunnychoppee/BPredict` 有存取權（Railway → Account → GitHub「Configure repo access」→ 勾選此 repo）。若服務 Settings → Source 顯示「Auto deploy unavailable / Could not load branches」，代表 App 尚未授權，push 不會觸發；此時可手動觸發：`railway service source connect --repo sunnychoppee/BPredict --branch main --service <svc>`（會立刻用 main 最新 commit 建置一次）。
