@@ -226,6 +226,7 @@
       "TELEGRAM_STARS": "Telegram Stars",
       "DEV": "Test payment"
     },
+    "chainMin": "Min ${amount}",
     "channelNote": {
       "NOWPAYMENTS": "Sandbox (testnet)",
       "STRIPE": "Test mode",

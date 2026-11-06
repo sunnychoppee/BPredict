@@ -37,28 +37,30 @@ export class ShopService {
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
     private readonly economy: EconomyService,
-    nowpayments: NowPaymentsProvider,
+    private readonly nowpayments: NowPaymentsProvider,
     stripe: StripeProvider,
     stars: TelegramStarsProvider,
     dev: DevProvider,
   ) {
-    this.providers = [nowpayments, stripe, stars, dev];
+    this.providers = [this.nowpayments, stripe, stars, dev];
   }
 
   // ---------- catalogue ----------
 
   async view(userId: string): Promise<ShopView> {
-    const [products, user, rewards, p] = await Promise.all([
+    const [products, user, rewards, p, usdtChainMinUsd] = await Promise.all([
       this.prisma.product.findMany({ where: { enabled: true }, orderBy: { sortOrder: "asc" } }),
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { isVip: true, vipExpiresAt: true } }),
       this.prisma.userRewards.findUnique({ where: { userId }, select: { firstChargeAt: true } }),
       this.economy.get(),
+      this.nowpayments.chainMinimumsUsd(),
     ]);
     const now = Date.now();
     return {
       products: products.map(toProductView),
       channels: this.providers.map((a) => ({ id: a.id, label: a.label, enabled: a.enabled(), note: a.note })),
       usdtChains: USDT_CHAINS,
+      usdtChainMinUsd,
       firstChargeAvailable: !rewards?.firstChargeAt,
       firstChargeMultiplier: p.first_charge_multiplier,
       isVip: user.isVip && (!user.vipExpiresAt || user.vipExpiresAt.getTime() > now),

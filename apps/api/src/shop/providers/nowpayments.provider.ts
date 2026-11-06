@@ -71,25 +71,62 @@ export class NowPaymentsProvider implements PaymentProviderAdapter {
   }
 
   /**
-   * NOWPayments enforces a per-currency minimum that depends on the merchant's payout wallet
-   * (e.g. ~11 USDT when everything settles to USDT-TRC20). The hosted invoice page renders blank
-   * when the amount is below it, so check first and fail with a readable message. Fails open on
-   * network errors — the invoice call will surface a hard error anyway.
+   * NOWPayments enforces a per-currency minimum that depends on the merchant's custody primary
+   * balance (e.g. ~11 USDT for everything when it is USDT-TRC20; usdttrc20 itself is ~10.8 USDT).
+   * The hosted invoice page renders blank below it, so check first and fail with a readable message.
+   * Fails open when the minimum is unknown — the invoice call surfaces a hard error anyway.
    */
   private async assertAboveMinimum(payCurrency: string, priceUsd: number, chain: UsdtChain) {
-    let min: { min_amount?: number; fiat_equivalent?: number };
+    const min = await this.chainMinimum(payCurrency);
+    if (min && priceUsd < min.usd) {
+      throw new BadRequestException(`USDT（${chain}）單筆最低 ${min.usdt.toFixed(2)} USDT，請選擇更高的方案或其他網路`);
+    }
+  }
+
+  private readonly minCache = new Map<string, { usd: number; usdt: number; at: number }>();
+  private static readonly MIN_TTL_MS = 10 * 60_000;
+
+  /** Minimum for one pay currency (USD + crypto), cached 10 min. Null when unknown. */
+  private async chainMinimum(payCurrency: string): Promise<{ usd: number; usdt: number } | null> {
+    const hit = this.minCache.get(payCurrency);
+    if (hit && Date.now() - hit.at < NowPaymentsProvider.MIN_TTL_MS) return hit;
     try {
-      min = await httpJson(`${this.baseUrl}/min-amount?currency_from=${payCurrency}&fiat_equivalent=usd`, {
+      const r = await httpJson<{ min_amount?: number; fiat_equivalent?: number }>(
+        `${this.baseUrl}/min-amount?currency_from=${payCurrency}&fiat_equivalent=usd`,
+        { headers: { "x-api-key": env.NOWPAYMENTS_API_KEY! }, timeoutMs: 8_000 },
+      );
+      const usd = Number(r.fiat_equivalent ?? 0);
+      if (!(usd > 0)) return hit ?? null;
+      const entry = { usd, usdt: Number(r.min_amount ?? usd), at: Date.now() };
+      this.minCache.set(payCurrency, entry);
+      return entry;
+    } catch {
+      return hit ?? null;
+    }
+  }
+
+  /** Per-chain minimum order value in USD for the shop UI (chains with unknown minimum are omitted). */
+  async chainMinimumsUsd(): Promise<Partial<Record<UsdtChain, number>>> {
+    if (!this.enabled()) return {};
+    const out: Partial<Record<UsdtChain, number>> = {};
+    await Promise.all(
+      (Object.keys(NOWPAYMENTS_CHAIN_CURRENCY) as UsdtChain[]).map(async (chain) => {
+        const m = await this.chainMinimum(NOWPAYMENTS_CHAIN_CURRENCY[chain]);
+        if (m) out[chain] = Math.ceil(m.usd * 100) / 100;
+      }),
+    );
+    return out;
+  }
+
+  /** `GET /v1/payment/{id}` — used to backfill `payin_hash` when the IPN body omits it. */
+  async fetchPayment(paymentId: string | number): Promise<{ payin_hash?: string | null; payment_status?: string } | null> {
+    try {
+      return await httpJson(`${this.baseUrl}/payment/${paymentId}`, {
         headers: { "x-api-key": env.NOWPAYMENTS_API_KEY! },
         timeoutMs: 8_000,
       });
     } catch {
-      return;
-    }
-    const minUsd = Number(min.fiat_equivalent ?? 0);
-    if (minUsd > 0 && priceUsd < minUsd) {
-      const minUsdt = Number(min.min_amount ?? minUsd).toFixed(2);
-      throw new BadRequestException(`USDT（${chain}）單筆最低 ${minUsdt} USDT，請選擇更高的方案或其他網路`);
+      return null;
     }
   }
 }

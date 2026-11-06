@@ -192,6 +192,7 @@ function ShopView() {
             product={picking}
             channels={enabledChannels}
             chains={shop.usdtChains}
+            chainMinUsd={shop.usdtChainMinUsd ?? {}}
             inTelegram={inTelegram}
             onClose={() => setPicking(null)}
             onCreated={(r) => {
@@ -262,6 +263,7 @@ function ChannelSheet({
   product,
   channels,
   chains,
+  chainMinUsd,
   inTelegram,
   onClose,
   onCreated,
@@ -269,6 +271,7 @@ function ChannelSheet({
   product: ProductView;
   channels: ShopView["channels"];
   chains: readonly UsdtChain[];
+  chainMinUsd: Partial<Record<UsdtChain, number>>;
   inTelegram: boolean;
   onClose: () => void;
   onCreated: (r: CreateOrderResult) => void;
@@ -276,7 +279,9 @@ function ChannelSheet({
   const t = useTranslations("shop");
   const pushToast = useTable((s) => s.pushToast);
   const [provider, setProvider] = useState<PaymentProviderId | null>(channels[0]?.id ?? null);
-  const [chain, setChain] = useState<UsdtChain>("TRC20");
+  // A chain is unavailable for this product when the provider's minimum exceeds the price (TRC20 is ~10.8 USDT).
+  const chainOk = (ch: UsdtChain) => (chainMinUsd[ch] ?? 0) <= product.priceUsdt;
+  const [chain, setChain] = useState<UsdtChain>(() => chains.find(chainOk) ?? chains[0] ?? "BEP20");
   const [busy, setBusy] = useState(false);
 
   async function submit() {
@@ -326,15 +331,27 @@ function ChannelSheet({
           ))}
           {provider === "NOWPAYMENTS" && (
             <div className="mt-1 flex gap-2">
-              {chains.map((ch) => (
-                <button
-                  key={ch}
-                  onClick={() => setChain(ch)}
-                  className={`flex-1 rounded-md border px-2 py-1.5 text-xs ${chain === ch ? "border-gold-bright bg-gold/15 text-gold-bright" : "border-gold/25 text-cream/75"}`}
-                >
-                  USDT-{ch}
-                </button>
-              ))}
+              {chains.map((ch) => {
+                const ok = chainOk(ch);
+                return (
+                  <button
+                    key={ch}
+                    disabled={!ok}
+                    title={ok ? undefined : t("chainMin", { amount: chainMinUsd[ch]?.toFixed(2) ?? "" })}
+                    onClick={() => ok && setChain(ch)}
+                    className={`flex flex-1 flex-col items-center rounded-md border px-2 py-1.5 text-xs ${
+                      !ok
+                        ? "cursor-not-allowed border-cream/10 text-cream/30"
+                        : chain === ch
+                          ? "border-gold-bright bg-gold/15 text-gold-bright"
+                          : "border-gold/25 text-cream/75"
+                    }`}
+                  >
+                    <span>USDT-{ch}</span>
+                    {!ok && <span className="text-[9px] leading-tight">{t("chainMin", { amount: chainMinUsd[ch]?.toFixed(2) ?? "" })}</span>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

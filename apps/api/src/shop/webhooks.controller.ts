@@ -2,6 +2,7 @@ import { Body, Controller, ForbiddenException, Headers, HttpCode, Logger, Post, 
 import type { Request } from "express";
 import { env } from "../config/env";
 import { ShopService } from "./shop.service";
+import { NowPaymentsProvider } from "./providers/nowpayments.provider";
 import { TelegramStarsProvider } from "./providers/telegram-stars.provider";
 import { verifyNowpaymentsSig, verifyStripeSig, verifyTelegramWebhookSecret } from "./signatures";
 
@@ -67,6 +68,7 @@ export class WebhooksController {
   constructor(
     private readonly shop: ShopService,
     private readonly stars: TelegramStarsProvider,
+    private readonly nowpaymentsProvider: NowPaymentsProvider,
   ) {}
 
   // ---------- NOWPayments IPN ----------
@@ -90,12 +92,18 @@ export class WebhooksController {
     const status = body.payment_status ?? "";
     const paid = Number(body.actually_paid ?? 0);
     const expected = Number(body.pay_amount ?? body.price_amount ?? Number(payment.priceUsdt));
+    // The `finished` IPN observed in UAT (2026-11-05) carried no payin_hash although GET /v1/payment has it;
+    // look it up so the on-chain tx lands in `payments.tx_hash` for reconciliation.
+    let txHash = body.payin_hash || undefined;
+    if (!txHash && body.payment_id && (status === "finished" || status === "partially_paid")) {
+      txHash = (await this.nowpaymentsProvider.fetchPayment(body.payment_id))?.payin_hash || undefined;
+    }
     const common = {
       paymentId,
       providerOrderId: payment.providerOrderId ?? String(body.invoice_id ?? body.payment_id ?? ""),
       paidAmount: paid || undefined,
       asset: body.pay_currency?.toUpperCase(),
-      txHash: body.payin_hash,
+      txHash,
       meta: { np_payment_id: body.payment_id, np_status: status },
     };
     if (status === "finished") {

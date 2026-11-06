@@ -226,6 +226,7 @@
       "TELEGRAM_STARS": "Telegram Stars",
       "DEV": "測試支付"
     },
+    "chainMin": "最低 ${amount}",
     "channelNote": {
       "NOWPAYMENTS": "Sandbox（測試網）",
       "STRIPE": "測試模式",

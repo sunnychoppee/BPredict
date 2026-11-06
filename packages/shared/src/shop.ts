@@ -4,7 +4,8 @@ export type ProductType = "COINS" | "GEMS" | "VIP";
 export type PaymentProviderId = "NOWPAYMENTS" | "STRIPE" | "TELEGRAM_STARS" | "DEV";
 export type PaymentStatus = "PENDING" | "PAID" | "PARTIALLY_PAID" | "EXPIRED" | "FAILED" | "REFUNDED";
 
-export const USDT_CHAINS = ["TRC20", "BEP20", "TON"] as const;
+/** Display order; the first is the default. BEP20 first: lowest fee and lowest provider minimum (TRC20 is ~10.8 USDT). */
+export const USDT_CHAINS = ["BEP20", "TRC20", "TON"] as const;
 export type UsdtChain = (typeof USDT_CHAINS)[number];
 
 export interface ProductView {
@@ -24,6 +25,8 @@ export interface ShopView {
   /** Channels the server can actually take orders for right now. */
   channels: { id: PaymentProviderId; label: string; enabled: boolean; note?: string }[];
   usdtChains: readonly UsdtChain[];
+  /** Minimum order value (USD) per USDT chain as reported by the provider; chains below it are disabled in the UI. */
+  usdtChainMinUsd: Partial<Record<UsdtChain, number>>;
   firstChargeAvailable: boolean;
   firstChargeMultiplier: number;
   isVip: boolean;
