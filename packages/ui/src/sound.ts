@@ -5,6 +5,8 @@
  * (browsers block autoplay) and every cue is a short envelope on oscillators / noise.
  */
 export type Cue = "chip" | "place" | "cancel" | "lock" | "tick" | "win" | "lose" | "void" | "click";
+/** `casino` = chip clatter & fanfares; `soft` = short, quiet UI tones for the 簡約漲跌 skin. */
+export type SoundTheme = "casino" | "soft";
 
 const STORAGE_KEY = "bp.sound";
 
@@ -12,9 +14,13 @@ class SoundEngine {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private _muted = typeof window !== "undefined" ? window.localStorage?.getItem(STORAGE_KEY) === "off" : false;
+  private theme: SoundTheme = "casino";
 
   get muted() {
     return this._muted;
+  }
+  setTheme(t: SoundTheme) {
+    this.theme = t;
   }
   setMuted(m: boolean) {
     this._muted = m;
@@ -47,6 +53,7 @@ class SoundEngine {
   play(cue: Cue) {
     if (this._muted || !this.ctx || !this.master || this.ctx.state !== "running") return;
     const t = this.ctx.currentTime;
+    if (this.theme === "soft") return this.playSoft(cue, t);
     switch (cue) {
       case "chip":
       case "click":
@@ -80,6 +87,38 @@ class SoundEngine {
       case "void":
         this.tone(t, 0.2, 440, "sine", 0.2);
         this.tone(t + 0.2, 0.2, 440, "sine", 0.2);
+        break;
+    }
+  }
+
+  /** Soft theme: no noise bursts, sine-only, shorter and ~40% quieter. */
+  private playSoft(cue: Cue, t: number) {
+    switch (cue) {
+      case "chip":
+      case "click":
+        this.tone(t, 0.03, 900, "sine", 0.08);
+        break;
+      case "place":
+        this.tone(t, 0.07, 620, "sine", 0.14);
+        this.tone(t + 0.04, 0.08, 830, "sine", 0.1);
+        break;
+      case "cancel":
+        this.tone(t, 0.09, 420, "sine", 0.1);
+        break;
+      case "lock":
+        this.tone(t, 0.14, 587, "sine", 0.14);
+        break;
+      case "tick":
+        this.tone(t, 0.04, 1200, "sine", 0.07);
+        break;
+      case "win":
+        [659, 880].forEach((f, i) => this.tone(t + i * 0.1, 0.2, f, "sine", 0.16));
+        break;
+      case "lose":
+        this.tone(t, 0.22, 262, "sine", 0.1);
+        break;
+      case "void":
+        this.tone(t, 0.16, 440, "sine", 0.1);
         break;
     }
   }

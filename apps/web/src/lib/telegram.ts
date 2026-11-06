@@ -54,14 +54,15 @@ export function getTelegramWebApp(): TelegramWebApp | null {
 
 export const inTelegram = () => getTelegramWebApp() !== null;
 
-/** Applies the casino theme regardless of the user's Telegram colour scheme and wires safe areas. */
+/** Applies our theme (per UI mode) regardless of the user's Telegram colour scheme and wires safe areas. */
 export function setupTelegramChrome(wa: TelegramWebApp) {
   try {
     wa.ready();
     wa.expand();
-    wa.setHeaderColor("#0B3D2E");
-    wa.setBackgroundColor("#071F18");
-    wa.setBottomBarColor?.("#071F18");
+    const fresh = document.documentElement.dataset.mode === "fresh";
+    wa.setHeaderColor(fresh ? "#FFFFFF" : "#0B3D2E");
+    wa.setBackgroundColor(fresh ? "#F4F6FA" : "#071F18");
+    wa.setBottomBarColor?.(fresh ? "#FFFFFF" : "#071F18");
     wa.disableVerticalSwipes?.();
     // Fullscreen hides Telegram's own header, so our top bar needs the content inset (see applySafeArea).
     if ((wa.platform === "ios" || wa.platform === "android") && wa.isVersionAtLeast("8.0")) wa.requestFullscreen?.();

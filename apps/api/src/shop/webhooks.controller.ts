@@ -205,8 +205,8 @@ export class WebhooksController {
     if (update.message && (text.startsWith("/start") || text.startsWith("/help"))) {
       const kb = this.stars.openAppKeyboard();
       const body = text.startsWith("/help")
-        ? "玩法：每 5 分鐘一局，鎖盤價之後 BTC 上漲為「莊」勝、下跌為「閒」勝、持平為「和」（退回本金）。\n金幣為虛擬貨幣，不可提現、無現金價值。每日簽到、連勝加成與排行榜獎勵都在牌桌內領取。"
-        : "歡迎來到 BPredict 莊閒！\n押「莊」看漲、押「閒」看跌，每 5 分鐘開一局。點下方按鈕開啟牌桌。";
+        ? "玩法：每 5 分鐘一回合，預測 BTC 相對鎖定價是漲還是跌；持平退回本金。經典模式以「莊 / 閒」呈現漲 / 跌，可在「我的」切換外觀。\n金幣為虛擬貨幣，不可提現、無現金價值。每日簽到、連勝加成與排行榜獎勵都在 App 內領取。"
+        : "歡迎來到 BPredict！\n每 5 分鐘一回合，預測 BTC 漲或跌。點下方按鈕開始。";
       const isHttps = env.WEB_URL.startsWith("https://");
       await this.stars.sendMessage(update.message.chat.id, isHttps ? body : `${body}\n${env.WEB_URL}`, isHttps ? { reply_markup: kb } : {}).catch((e) => this.log.warn(`sendMessage: ${e.message}`));
     }

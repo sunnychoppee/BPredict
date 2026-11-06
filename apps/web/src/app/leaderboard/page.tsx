@@ -99,7 +99,7 @@ function Leaderboard() {
 
       <Panel className="p-2">
         {err ? (
-          <div className="p-4 text-center text-sm text-banker">{tc("error")}</div>
+          <div className="p-4 text-center text-sm text-neg">{tc("error")}</div>
         ) : !view ? (
           <div className="p-4 text-center text-sm text-cream/60">{tc("loading")}</div>
         ) : view.entries.length === 0 ? (
@@ -134,7 +134,7 @@ function Row({ e, value, sub, highlight, rankLabel }: { e: LeaderboardEntry; val
         </div>
         <div className="text-[10px] text-cream/50">{sub}</div>
       </div>
-      <div className={`num text-right text-base ${value.startsWith("−") ? "text-banker" : "text-gold-bright"}`}>{value}</div>
+      <div className={`num text-right text-base ${value.startsWith("−") ? "text-neg" : "text-gold-bright"}`}>{value}</div>
     </div>
   );
 }

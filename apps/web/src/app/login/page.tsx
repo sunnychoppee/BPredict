@@ -73,7 +73,7 @@ function LoginInner() {
         <h1 className="font-display text-center text-2xl text-gold">{t("title")}</h1>
         <p className="mt-1 text-center text-xs text-cream/60">{t("tagline")}</p>
 
-        {errText && <div className="mt-4 rounded-md border border-banker/60 bg-banker/20 p-2 text-sm">{errText}</div>}
+        {errText && <div className="mt-4 rounded-md border border-neg/60 bg-neg/20 p-2 text-sm">{errText}</div>}
 
         <a href={`${API_URL}/auth/google`} className="btn-gold mt-6 block w-full text-center">
           {t("google")}

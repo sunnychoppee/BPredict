@@ -30,6 +30,7 @@ export class UsersController {
         nickname: user.nickname,
         avatarUrl: user.avatarUrl,
         locale: user.locale,
+        uiMode: user.uiMode,
         isVip: user.isVip && (!user.vipExpiresAt || user.vipExpiresAt > new Date()),
         vipExpiresAt: user.vipExpiresAt?.toISOString() ?? null,
         createdAt: user.createdAt.toISOString(),
@@ -40,12 +41,12 @@ export class UsersController {
     };
   }
 
-  /** Edit nickname and/or UI locale. */
+  /** Edit nickname, UI locale and/or UI skin. */
   @Patch()
   async update(@CurrentUser() auth: AuthUser, @Body() body: unknown) {
     const parsed = updateMeSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.issues.map((i) => i.message).join("; "));
-    const u = await this.prisma.user.update({ where: { id: auth.id }, data: parsed.data, select: { nickname: true, locale: true } });
+    const u = await this.prisma.user.update({ where: { id: auth.id }, data: parsed.data, select: { nickname: true, locale: true, uiMode: true } });
     return u;
   }
 

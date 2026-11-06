@@ -2,57 +2,145 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------------------------------------
+ * Theme tokens. RGB triplets so Tailwind utilities keep their /opacity modifiers.
+ * Default = 經典賭場 (casino). `html[data-mode="fresh"]` = 簡約漲跌 (light, modern).
+ * Semantic reuse in fresh mode: felt → card, felt-dark → page, gold → brand, cream → ink,
+ * banker → 漲 (green), player → 跌 (red).
+ * ---------------------------------------------------------------------------------------------- */
 :root {
-  --felt: #0b3d2e;
-  --felt-dark: #071f18;
-  --gold: #c9a24d;
-  --gold-bright: #e8c97a;
-  --banker: #b3252d;
-  --player: #1f4e9a;
-  --cream: #f4e8c1;
-  --void: #8a8a8a;
+  --c-felt: 11 61 46;
+  --c-felt-dark: 7 31 24;
+  --c-gold: 201 162 77;
+  --c-gold-bright: 232 201 122;
+  --c-banker: 179 37 45;
+  --c-player: 31 78 154;
+  --c-cream: 244 232 193;
+  --c-void: 138 138 138;
+  --c-pos: 110 231 183;
+  --c-neg: 179 37 45;
+  --c-glow: 232 201 122;
+  --c-btn-edge: 138 106 37;
+
+  --font-display: Georgia, "Noto Serif TC", serif;
+  --font-sans: system-ui, "Noto Sans TC", sans-serif;
+  --font-num: Georgia, "Noto Serif TC", serif;
+  --vignette: radial-gradient(ellipse at center, rgba(232, 201, 122, 0.1) 0%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.45) 100%);
+  --radius-panel: 1rem;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html[data-mode="fresh"] {
+  --c-felt: 255 255 255;
+  --c-felt-dark: 244 246 250;
+  --c-gold: 79 70 229;
+  --c-gold-bright: 67 56 202;
+  --c-banker: 22 163 74;
+  --c-player: 239 68 68;
+  --c-cream: 17 24 39;
+  --c-void: 156 163 175;
+  --c-pos: 22 163 74;
+  --c-neg: 239 68 68;
+  --c-glow: 79 70 229;
+  --c-btn-edge: 55 48 163;
+
+  --font-display: Inter, "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+  --font-sans: Inter, "Noto Sans TC", "PingFang TC", system-ui, sans-serif;
+  --font-num: Inter, "Noto Sans TC", system-ui, sans-serif;
+  --vignette: none;
+  --radius-panel: 1.125rem;
+  color-scheme: light;
 }
 
 html,
 body {
   height: 100%;
-  background: var(--felt-dark);
-  color: var(--cream);
+  background: rgb(var(--c-felt-dark));
+  color: rgb(var(--c-cream));
+  font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Panel surface: felt texture in casino, flat white card with a soft shadow in fresh. */
 .felt-surface {
-  background-color: var(--felt);
+  background-color: rgb(var(--c-felt));
   background-image:
     radial-gradient(ellipse at 50% 30%, rgba(232, 201, 122, 0.12) 0%, rgba(0, 0, 0, 0) 55%),
     repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.015) 0 2px, rgba(0, 0, 0, 0.015) 2px 4px);
 }
+html[data-mode="fresh"] .felt-surface {
+  background-image: none;
+}
 
 .gold-frame {
-  border: 1px solid var(--gold);
+  border: 1px solid rgb(var(--c-gold));
   box-shadow:
     inset 0 0 0 1px rgba(232, 201, 122, 0.25),
     0 0 18px rgba(201, 162, 77, 0.18);
 }
+html[data-mode="fresh"] .gold-frame {
+  border: 1px solid rgb(var(--c-cream) / 0.06);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 4px 14px rgba(16, 24, 40, 0.05);
+}
 
 .num {
-  font-family: Georgia, "Noto Serif TC", serif;
+  font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+html[data-mode="fresh"] .num {
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+html[data-mode="fresh"] .font-display {
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .btn-gold {
   @apply rounded-md bg-gold px-4 py-2 font-semibold text-felt-dark transition hover:bg-gold-bright active:translate-y-px disabled:opacity-50;
 }
+html[data-mode="fresh"] .btn-gold {
+  @apply rounded-xl text-white;
+}
 
 .btn-outline {
   @apply rounded-md border border-gold/70 px-4 py-2 font-medium text-cream transition hover:border-gold-bright hover:text-gold-bright active:translate-y-px disabled:opacity-50;
 }
+html[data-mode="fresh"] .btn-outline {
+  @apply rounded-xl border-cream/10 bg-felt;
+}
 
 .input {
   @apply w-full rounded-md border border-gold/40 bg-felt-dark/70 px-3 py-2 text-cream placeholder:text-cream/40 focus:border-gold focus:outline-none;
+}
+html[data-mode="fresh"] .input {
+  @apply rounded-xl border-cream/10 bg-felt-dark;
+}
+
+/* Fresh mode: neutral hairlines instead of tinted brand borders on panels / cards / dividers. */
+html[data-mode="fresh"] .border-gold\/30,
+html[data-mode="fresh"] .border-gold\/25,
+html[data-mode="fresh"] .border-gold\/20,
+html[data-mode="fresh"] .border-gold\/40 {
+  border-color: rgb(var(--c-cream) / 0.08);
+}
+html[data-mode="fresh"] .divide-gold\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgb(var(--c-cream) / 0.06);
+}
+
+/* Shop first-charge banner (casino: dark gold bar with bright gold text; fresh: brand gradient with white text). */
+.promo-banner {
+  background-image: linear-gradient(90deg, #5a3a0a, #8a6a25, #5a3a0a);
+  color: rgb(var(--c-gold-bright));
+}
+html[data-mode="fresh"] .promo-banner {
+  background-image: linear-gradient(90deg, #4f46e5, #6366f1, #4f46e5);
+  color: #fff;
 }
 
 .test-watermark::after {
@@ -62,8 +150,8 @@ body {
   bottom: calc(10px + var(--safe-bottom));
   font: 700 11px/1 system-ui;
   letter-spacing: 0.2em;
-  color: rgba(232, 201, 122, 0.45);
-  border: 1px solid rgba(232, 201, 122, 0.45);
+  color: rgb(var(--c-gold) / 0.55);
+  border: 1px solid rgb(var(--c-gold) / 0.55);
   padding: 4px 6px;
   border-radius: 4px;
   pointer-events: none;

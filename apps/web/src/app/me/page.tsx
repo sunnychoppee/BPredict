@@ -12,6 +12,7 @@ import { api, ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/auth-store";
 import { UI_LOCALES, fmtDate, fmtDateTime, useLocale, type UiLocale } from "@/lib/i18n";
 import { useTable } from "@/lib/table-store";
+import { useUiMode, type UiMode } from "@/lib/ui-mode";
 
 const PROVIDER_LABEL = { TELEGRAM: "Telegram", GOOGLE: "Google", EMAIL: "Email" } as const;
 
@@ -30,6 +31,7 @@ function MeView() {
   const { me, loading, reload } = useMe();
   const auth = useAuth();
   const { locale, setLocale } = useLocale();
+  const { mode, setMode } = useUiMode();
   const coins = useTable((s) => s.coins);
   const pushToast = useTable((s) => s.pushToast);
   const [stats, setStats] = useState<UserStatsView | null>(null);
@@ -83,6 +85,12 @@ function MeView() {
     if (me) await api("/me", { method: "PATCH", body: JSON.stringify({ locale: l }) }).catch(() => undefined);
   }
 
+  async function changeMode(m: UiMode) {
+    if (m === mode) return;
+    setMode(m);
+    if (me) await api("/me", { method: "PATCH", body: JSON.stringify({ uiMode: m }) }).catch(() => undefined);
+  }
+
   async function logout() {
     setBusy(true);
     try {
@@ -103,7 +111,10 @@ function MeView() {
         <Link href="/login" className="btn-gold mt-4 inline-block">
           {tc("goLogin")}
         </Link>
-        <LanguageRow locale={locale} onChange={(l) => void changeLocale(l)} label={t("language")} />
+        <div className="mt-4 text-left">
+          <ModeRow mode={mode} onChange={(m) => void changeMode(m)} />
+          <LanguageRow locale={locale} onChange={(l) => void changeLocale(l)} label={t("language")} />
+        </div>
       </Panel>
     );
 
@@ -178,7 +189,7 @@ function MeView() {
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           <Stat label={t("totalRounds")} value={stats ? fmt(stats.totalRounds) : "—"} />
           <Stat label={t("winRate")} value={winRate != null ? `${winRate}%` : "—"} />
-          <Stat label={t("net")} value={stats ? `${stats.netProfit >= 0 ? "+" : "−"}${fmt(Math.abs(stats.netProfit))}` : "—"} tone={stats ? (stats.netProfit >= 0 ? "banker" : "player") : undefined} />
+          <Stat label={t("net")} value={stats ? `${stats.netProfit >= 0 ? "+" : "−"}${fmt(Math.abs(stats.netProfit))}` : "—"} tone={stats ? (stats.netProfit >= 0 ? "pos" : "neg") : undefined} />
           <Stat label={t("wins")} value={stats ? fmt(stats.wins) : "—"} />
           <Stat label={t("curStreak")} value={stats ? `${stats.currentStreak}` : "—"} />
           <Stat label={t("maxStreak")} value={stats ? `${stats.maxStreak}` : "—"} />
@@ -198,7 +209,7 @@ function MeView() {
                   <div className="text-[10px] text-cream/45">{fmtDateTime(e.createdAt, locale)}</div>
                 </div>
                 <div className="text-right">
-                  <div className={`num ${e.amount >= 0 ? "text-emerald-300" : "text-banker"}`}>
+                  <div className={`num ${e.amount >= 0 ? "text-pos" : "text-neg"}`}>
                     {e.amount >= 0 ? "+" : "−"}
                     {fmt(Math.abs(e.amount))} {e.currency === "GEMS" ? "💎" : ""}
                   </div>
@@ -216,6 +227,7 @@ function MeView() {
       </Panel>
 
       <Panel className="p-4">
+        <ModeRow mode={mode} onChange={(m) => void changeMode(m)} />
         <LanguageRow locale={locale} onChange={(l) => void changeLocale(l)} label={t("language")} />
         {me.isAdmin && (
           <Link href="/admin" className="btn-outline mt-3 block text-center text-sm">
@@ -247,11 +259,50 @@ function LanguageRow({ locale, onChange, label }: { locale: UiLocale; onChange: 
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "banker" | "player" }) {
+/** 外觀模式: two preview cards (經典賭場 / 簡約漲跌). Previews are hard-coded colours so each card shows its own skin. */
+function ModeRow({ mode, onChange }: { mode: UiMode; onChange: (m: UiMode) => void }) {
+  const t = useTranslations("me");
+  const opts: { id: UiMode; name: string; desc: string }[] = [
+    { id: "casino", name: t("modeCasino"), desc: t("modeCasinoDesc") },
+    { id: "fresh", name: t("modeFresh"), desc: t("modeFreshDesc") },
+  ];
+  return (
+    <div className="text-sm">
+      <div className="text-cream/70">🎨 {t("appearance")}</div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {opts.map((o) => {
+          const on = o.id === mode;
+          return (
+            <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={on} className={`relative rounded-xl border-2 p-2 text-left transition ${on ? "border-gold bg-gold/10" : "border-gold/20 hover:border-gold/50"}`}>
+              {on && <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-gold text-[10px] text-white">✓</span>}
+              {o.id === "casino" ? (
+                <div className="flex h-16 items-center justify-center rounded-lg border border-[#C9A24D] bg-[#0B3D2E] font-serif text-lg tracking-[.3em] text-[#E8C97A]" style={{ backgroundImage: "radial-gradient(ellipse at 50% 30%, rgba(232,201,122,.25), transparent 60%)" }}>
+                  莊 閒
+                </div>
+              ) : (
+                <div className="flex h-16 flex-col justify-between rounded-lg border border-[#E5E7EB] bg-[#F4F6FA] p-1.5">
+                  <div className="h-5 rounded-md border border-[#E5E7EB] bg-white" />
+                  <div className="flex h-6 overflow-hidden rounded-md text-[10px] font-extrabold text-white">
+                    <span className="flex flex-1 items-center justify-center bg-[#16A34A]">▲ 漲</span>
+                    <span className="flex flex-1 items-center justify-center bg-[#EF4444]">▼ 跌</span>
+                  </div>
+                </div>
+              )}
+              <div className="mt-1.5 text-[13px] font-semibold text-cream">{o.name}</div>
+              <div className="text-[11px] text-cream/55">{o.desc}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "pos" | "neg" }) {
   return (
     <div className="rounded-lg border border-gold/20 bg-felt-dark/50 p-2">
       <div className="text-[10px] text-cream/50">{label}</div>
-      <div className={`num text-lg ${tone === "banker" ? "text-emerald-300" : tone === "player" ? "text-banker" : "text-cream"}`}>{value}</div>
+      <div className={`num text-lg ${tone === "pos" ? "text-pos" : tone === "neg" ? "text-neg" : "text-cream"}`}>{value}</div>
     </div>
   );
 }

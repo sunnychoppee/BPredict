@@ -1,0 +1,114 @@
+{
+  "common": {
+    "banker": "漲",
+    "player": "跌",
+    "tie": "平",
+    "mixed": "雙向",
+    "round": "回合 #{n}"
+  },
+  "nav": {
+    "table": "行情"
+  },
+  "table": {
+    "subtitle": "BTC / USDT · 5 分鐘",
+    "betting": "預測中",
+    "waiting": "等待下一回合…",
+    "settling": "結算中…",
+    "prevLocked": "· 上回合 #{no} 鎖定 {price}，{t} 後結算",
+    "lockLine": "鎖定價",
+    "countdown": "預測截止倒數",
+    "wait": "等待",
+    "bankerSub": "5 分鐘後高於鎖定價",
+    "playerSub": "5 分鐘後低於鎖定價",
+    "pool": "投入 {n}",
+    "bankerPool": "看漲",
+    "playerPool": "看跌",
+    "sentiment": "市場情緒（本回合投入）",
+    "totalPool": "總池 {n}",
+    "amount": "投入金額",
+    "custom": "自訂金額",
+    "max": "Max",
+    "myStake": "我的投入　",
+    "expected": "預計收益",
+    "limits": "上限 {max} · 手續費 {fee}%",
+    "repeat": "重複上回合",
+    "double": "加倍",
+    "undo": "撤銷上一筆",
+    "clear": "清空",
+    "buyUp": "買漲",
+    "buyDown": "買跌",
+    "recent": "最近 {n} 回合",
+    "streakUp": "連漲 {n}",
+    "streakDown": "連跌 {n}",
+    "loginHint": "後即可預測，新手送 {n} 金幣",
+    "betFailed": "送出失敗",
+    "repeatFailed": "重複失敗",
+    "doubleFailed": "加倍失敗",
+    "cancelFailed": "撤銷失敗",
+    "bankerWins": "漲",
+    "playerWins": "跌",
+    "tieRound": "平盤",
+    "settledTitle": "回合 #{n} · 已結算",
+    "nextRound": "繼續預測下一回合（{t}）",
+    "nextRoundSoon": "下一回合即將開始",
+    "refund": "退還 {n}",
+    "streak": "🔥 連續猜中 {n} 回合",
+    "toastWin": "回合 #{no} 猜中 +{n}",
+    "toastWinBonus": "（含連勝加成 {n}）",
+    "toastWinStreak": " · 連續 {n} 回合",
+    "toastVoid": "回合 #{no} 平盤 / 無效，已退還 {n}",
+    "toastLose": "回合 #{no} 未猜中，-{n}",
+    "myHistory": "我的紀錄",
+    "dragon": "BTC 已連{side} {n} 回合"
+  },
+  "login": {
+    "tagline": "虛擬金幣 · 純娛樂 · 18+"
+  },
+  "me": {
+    "loginBlurb": "登入後即可查看成績與金幣紀錄。",
+    "stats": "成績",
+    "totalRounds": "回合",
+    "net": "淨收益",
+    "wins": "猜中",
+    "curStreak": "目前連勝",
+    "history": "預測紀錄",
+    "appearance": "外觀模式",
+    "modeCasino": "經典賭場",
+    "modeCasinoDesc": "莊 / 閒 · 籌碼 · 路紙",
+    "modeFresh": "簡約漲跌",
+    "modeFreshDesc": "漲 / 跌 · 金額快選 · 淺色",
+    "ledgerType": {
+      "BET": "投入",
+      "BET_CANCEL": "撤銷投入",
+      "PAYOUT": "收益"
+    }
+  },
+  "rewards": {
+    "checkin": "每日簽到",
+    "supply": "定時補給",
+    "vipDaily": "VIP 每日金幣",
+    "relief": "救濟金"
+  },
+  "shop": {
+    "firstCharge": "首充雙倍",
+    "coinPacks": "金幣包",
+    "vip": "VIP 月卡",
+    "vipPerk2": "• 單回合投入上限提升至 1,000,000",
+    "gems": "寶石"
+  },
+  "lb": {
+    "title": "排行榜",
+    "profit": "收益榜",
+    "empty": "尚無上榜玩家，快去預測吧！"
+  },
+  "history": {
+    "title": "預測紀錄",
+    "table": "行情結果",
+    "mine": "我的預測",
+    "loginHint": "登入後可查看自己的預測紀錄。",
+    "stake": "投入 {n}",
+    "payout": "收益 {n}",
+    "won": "猜中",
+    "lost": "未中"
+  }
+}

@@ -120,6 +120,11 @@
     "nicknameHint": "2–24 字",
     "nicknameSaved": "暱稱已更新",
     "language": "語言",
+    "appearance": "外觀模式",
+    "modeCasino": "經典賭場",
+    "modeCasinoDesc": "莊 / 閒 · 籌碼 · 路紙",
+    "modeFresh": "簡約漲跌",
+    "modeFreshDesc": "漲 / 跌 · 金額快選 · 淺色",
     "admin": "管理後台",
     "history": "對局紀錄",
     "ledgerType": {

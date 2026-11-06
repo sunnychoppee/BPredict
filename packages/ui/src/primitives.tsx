@@ -6,7 +6,7 @@ export function GoldButton({ className = "", variant = "solid", ...rest }: Butto
   const base = "inline-flex items-center justify-center gap-1 rounded-md px-4 py-2 text-sm font-semibold transition active:translate-y-px disabled:opacity-50 disabled:active:translate-y-0";
   const v =
     variant === "solid"
-      ? "bg-gradient-to-b from-gold-bright to-gold text-felt-dark shadow-[0_2px_0_#8a6a25,0_6px_14px_rgba(0,0,0,.35)] hover:brightness-110"
+      ? "bg-gradient-to-b from-gold-bright to-gold text-felt-dark shadow-[0_2px_0_rgb(var(--c-btn-edge)),0_6px_14px_rgba(0,0,0,.35)] hover:brightness-110"
       : variant === "outline"
         ? "border border-gold/70 text-cream hover:border-gold-bright hover:text-gold-bright"
         : "text-cream/70 hover:text-gold-bright";

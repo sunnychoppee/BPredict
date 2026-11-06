@@ -420,7 +420,7 @@ function UserDetail({ user: u, onChange }: { user: AdminUserRow; onChange: () =>
               <div className="text-[10px] text-cream/40">{fmtDateTime(l.createdAt, locale)}</div>
             </span>
             <span className="text-right">
-              <div className={`num ${l.amount >= 0 ? "text-emerald-300" : "text-banker"}`}>
+              <div className={`num ${l.amount >= 0 ? "text-pos" : "text-neg"}`}>
                 {l.amount >= 0 ? "+" : ""}
                 {fmt(l.amount)} {l.currency === "GEMS" ? "💎" : ""}
               </div>

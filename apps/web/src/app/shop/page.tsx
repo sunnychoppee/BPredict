@@ -108,9 +108,9 @@ function ShopView() {
   return (
     <div className="flex flex-col gap-3">
       {shop.firstChargeAvailable && (
-        <div className="relative overflow-hidden rounded-xl border border-gold/60 bg-gradient-to-r from-[#5a3a0a] via-[#8a6a25] to-[#5a3a0a] p-3 text-center shadow-[0_0_24px_rgba(232,201,122,.35)]">
-          <div className="font-display text-lg text-gold-bright">{t("firstCharge")}</div>
-          <div className="text-xs text-cream/85">{t("firstChargeBlurb", { m: shop.firstChargeMultiplier })}</div>
+        <div className="promo-banner relative overflow-hidden rounded-xl border border-gold/60 p-3 text-center shadow-glow">
+          <div className="font-display text-lg">{t("firstCharge")}</div>
+          <div className="text-xs opacity-85">{t("firstChargeBlurb", { m: shop.firstChargeMultiplier })}</div>
           <div className="pointer-events-none absolute inset-0 animate-shimmer bg-[linear-gradient(110deg,transparent_30%,rgba(255,255,255,.14)_50%,transparent_70%)] bg-[length:200%_100%]" />
         </div>
       )}
@@ -249,7 +249,7 @@ function ProductCard({ p, firstCharge, mult, onBuy }: { p: ProductView; firstCha
   const doubled = firstCharge && p.type === "COINS" && mult ? p.coins * mult : null;
   return (
     <button onClick={onBuy} className="group relative flex flex-col items-center rounded-xl border border-gold/30 bg-felt-dark/70 p-3 text-center transition hover:border-gold-bright hover:bg-felt-dark active:translate-y-px">
-      {p.bonusPct > 0 && <span className="absolute -top-2 right-2 rounded-full bg-banker px-2 py-0.5 text-[10px] font-bold text-cream shadow">+{p.bonusPct}%</span>}
+      {p.bonusPct > 0 && <span className="absolute -top-2 right-2 rounded-full bg-neg px-2 py-0.5 text-[10px] font-bold text-white shadow">+{p.bonusPct}%</span>}
       <div className="text-2xl">{p.type === "COINS" ? (p.priceUsdt >= 100 ? "💰" : "🪙") : "💎"}</div>
       <div className="num mt-1 text-base text-gold-bright">{fmt(doubled ?? amount)}</div>
       {doubled && <div className="num text-[10px] text-cream/50 line-through">{fmt(amount)}</div>}

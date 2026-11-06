@@ -120,6 +120,11 @@
     "nicknameHint": "2–24 characters",
     "nicknameSaved": "Nickname updated",
     "language": "Language",
+    "appearance": "Appearance",
+    "modeCasino": "Classic casino",
+    "modeCasinoDesc": "Banker / Player · chips · roadmap",
+    "modeFresh": "Clean Up/Down",
+    "modeFreshDesc": "Up / Down · quick amounts · light",
     "admin": "Admin console",
     "history": "Round history",
     "ledgerType": {

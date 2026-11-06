@@ -131,7 +131,7 @@ function History() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className={`num text-base ${r.net > 0 ? "text-emerald-300" : refunded ? "text-cream/70" : "text-banker"}`}>{refunded ? `±0` : `${r.net >= 0 ? "+" : "−"}${fmt(Math.abs(r.net))}`}</div>
+                      <div className={`num text-base ${r.net > 0 ? "text-pos" : refunded ? "text-cream/70" : "text-neg"}`}>{refunded ? `±0` : `${r.net >= 0 ? "+" : "−"}${fmt(Math.abs(r.net))}`}</div>
                       <div className="text-[10px] text-cream/45">{won ? t("won") : refunded ? t("refunded") : t("lost")}</div>
                     </div>
                   </li>

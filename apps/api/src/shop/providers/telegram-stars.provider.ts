@@ -48,8 +48,8 @@ export class TelegramStarsProvider implements PaymentProviderAdapter, OnModuleIn
   private async configureBotProfile() {
     if (!env.WEB_URL.startsWith("https://")) return;
     const steps: [string, Record<string, unknown>][] = [
-      ["setChatMenuButton", { menu_button: { type: "web_app", text: "開啟牌桌", web_app: { url: env.WEB_URL } } }],
-      ["setMyCommands", { commands: [{ command: "start", description: "開啟牌桌 · Open the table" }, { command: "help", description: "玩法說明 · How to play" }] }],
+      ["setChatMenuButton", { menu_button: { type: "web_app", text: "開啟 BPredict", web_app: { url: env.WEB_URL } } }],
+      ["setMyCommands", { commands: [{ command: "start", description: "開啟 BPredict · Open the app" }, { command: "help", description: "玩法說明 · How to play" }] }],
       ["setMyShortDescription", { short_description: "莊閒 · BTC 5 分鐘漲跌預測。虛擬金幣，純娛樂。" }],
       ["setMyDescription", { description: "百家樂節奏的 BTC 漲跌預測遊戲：每 5 分鐘一局，押「莊」看漲、押「閒」看跌。虛擬金幣不可提現，純娛樂。\n\nBaccarat-style BTC up/down prediction. Virtual coins only, no cash value." }],
     ];
@@ -64,7 +64,7 @@ export class TelegramStarsProvider implements PaymentProviderAdapter, OnModuleIn
   }
 
   /** Inline keyboard with a single button that opens the Mini App. */
-  openAppKeyboard(text = "🎴 開啟牌桌") {
+  openAppKeyboard(text = "開啟 BPredict") {
     return { inline_keyboard: [[{ text, web_app: { url: env.WEB_URL } }]] };
   }
 

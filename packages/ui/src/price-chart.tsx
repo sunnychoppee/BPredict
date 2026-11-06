@@ -13,39 +13,71 @@ export interface PriceChartProps {
   height?: number;
   windowSec?: number;
   className?: string;
+  /** Colour set: casino (gold / red-up / blue-down on felt) or fresh (grey / green-up / red-down on white). */
+  palette?: "casino" | "fresh";
 }
+
+const PALETTES = {
+  casino: {
+    text: "rgba(244,232,193,.55)",
+    font: "Georgia, serif",
+    grid: "rgba(232,201,122,.06)",
+    axis: "rgba(232,201,122,.2)",
+    neutral: "#E8C97A",
+    neutralFill: "rgba(232,201,122,.35)",
+    up: "#e04a53",
+    upFill: "rgba(179,37,45,.35)",
+    down: "#4f86d8",
+    downFill: "rgba(31,78,154,.4)",
+    lockLine: "rgba(244,232,193,.85)",
+  },
+  fresh: {
+    text: "rgba(107,114,128,.9)",
+    font: "Inter, system-ui, sans-serif",
+    grid: "rgba(17,24,39,.05)",
+    axis: "rgba(17,24,39,.1)",
+    neutral: "#6366F1",
+    neutralFill: "rgba(99,102,241,.18)",
+    up: "#16A34A",
+    upFill: "rgba(22,163,74,.22)",
+    down: "#EF4444",
+    downFill: "rgba(239,68,68,.22)",
+    lockLine: "rgba(107,114,128,.8)",
+  },
+} as const;
 
 /**
  * BTC price area chart (lightweight-charts) with the lock price as a dashed baseline.
  * Line colour follows the side currently "winning" vs. the lock price.
  */
-export function PriceChart({ ticks, lockPrice, lockLabel = "鎖盤", height = 120, windowSec = 600, className = "" }: PriceChartProps) {
+export function PriceChart({ ticks, lockPrice, lockLabel = "鎖盤", height = 120, windowSec = 600, className = "", palette = "casino" }: PriceChartProps) {
   const el = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const series = useRef<ISeriesApi<"Area"> | null>(null);
   const lockLine = useRef<IPriceLine | null>(null);
   const lastTs = useRef<number>(0);
+  const P = PALETTES[palette];
 
   useEffect(() => {
     if (!el.current) return;
     const c = createChart(el.current, {
       height,
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: "rgba(244,232,193,.55)", fontFamily: "Georgia, serif", fontSize: 10, attributionLogo: false },
-      grid: { vertLines: { color: "rgba(232,201,122,.06)" }, horzLines: { color: "rgba(232,201,122,.06)" } },
-      rightPriceScale: { borderColor: "rgba(232,201,122,.2)", scaleMargins: { top: 0.15, bottom: 0.1 } },
-      timeScale: { borderColor: "rgba(232,201,122,.2)", timeVisible: true, secondsVisible: false, rightOffset: 2 },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: P.text, fontFamily: P.font, fontSize: 10, attributionLogo: false },
+      grid: { vertLines: { color: P.grid }, horzLines: { color: P.grid } },
+      rightPriceScale: { borderColor: P.axis, scaleMargins: { top: 0.15, bottom: 0.1 } },
+      timeScale: { borderColor: P.axis, timeVisible: true, secondsVisible: false, rightOffset: 2 },
       handleScroll: false,
       handleScale: false,
       crosshair: { horzLine: { visible: false, labelVisible: false }, vertLine: { visible: false, labelVisible: false } },
     });
     const s = c.addSeries(AreaSeries, {
-      lineColor: "#E8C97A",
-      topColor: "rgba(232,201,122,.35)",
-      bottomColor: "rgba(232,201,122,0)",
+      lineColor: P.neutral,
+      topColor: P.neutralFill,
+      bottomColor: "rgba(0,0,0,0)",
       lineWidth: 2,
       priceLineVisible: true,
-      priceLineColor: "rgba(232,201,122,.5)",
+      priceLineColor: P.neutral,
       lastValueVisible: true,
       priceFormat: { type: "price", precision: 2, minMove: 0.01 },
     });
@@ -58,7 +90,8 @@ export function PriceChart({ ticks, lockPrice, lockLabel = "鎖盤", height = 12
       series.current = null;
       lockLine.current = null;
     };
-  }, [height]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [height, palette]);
 
   // Full reload when the tick array identity changes substantially; incremental update otherwise.
   useEffect(() => {
@@ -88,10 +121,10 @@ export function PriceChart({ ticks, lockPrice, lockLabel = "鎖盤", height = 12
     const lp = lockPrice ?? null;
     const up = lp != null ? last.value > lp : null;
     s.applyOptions({
-      lineColor: up == null ? "#E8C97A" : up ? "#e04a53" : "#4f86d8",
-      topColor: up == null ? "rgba(232,201,122,.35)" : up ? "rgba(179,37,45,.35)" : "rgba(31,78,154,.4)",
+      lineColor: up == null ? P.neutral : up ? P.up : P.down,
+      topColor: up == null ? P.neutralFill : up ? P.upFill : P.downFill,
     });
-  }, [ticks, windowSec, lockPrice]);
+  }, [ticks, windowSec, lockPrice, P]);
 
   useEffect(() => {
     const s = series.current;
@@ -101,9 +134,9 @@ export function PriceChart({ ticks, lockPrice, lockLabel = "鎖盤", height = 12
       lockLine.current = null;
     }
     if (lockPrice != null) {
-      lockLine.current = s.createPriceLine({ price: lockPrice, color: "rgba(244,232,193,.85)", lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: lockLabel });
+      lockLine.current = s.createPriceLine({ price: lockPrice, color: P.lockLine, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: lockLabel });
     }
-  }, [lockPrice, lockLabel]);
+  }, [lockPrice, lockLabel, P]);
 
   return <div ref={el} className={`w-full ${className}`} style={{ height }} />;
 }

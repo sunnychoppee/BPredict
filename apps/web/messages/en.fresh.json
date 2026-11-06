@@ -1,0 +1,110 @@
+{
+  "common": {
+    "banker": "Up",
+    "player": "Down",
+    "tie": "Flat",
+    "mixed": "Both",
+    "round": "Round #{n}"
+  },
+  "nav": {
+    "table": "Market"
+  },
+  "table": {
+    "subtitle": "BTC / USDT · 5 min",
+    "betting": "Predicting",
+    "waiting": "Waiting for next round…",
+    "settling": "Settling…",
+    "prevLocked": "· Round #{no} locked at {price}, settles in {t}",
+    "lockLine": "Lock price",
+    "countdown": "Predictions close in",
+    "wait": "Wait",
+    "bankerSub": "above lock price in 5 min",
+    "playerSub": "below lock price in 5 min",
+    "pool": "Staked {n}",
+    "bankerPool": "Bullish",
+    "playerPool": "Bearish",
+    "sentiment": "Market sentiment (this round)",
+    "totalPool": "Total {n}",
+    "amount": "Amount",
+    "custom": "Custom amount",
+    "max": "Max",
+    "myStake": "My stake ",
+    "expected": "Est. return",
+    "limits": "Max {max} · {fee}% fee",
+    "repeat": "Repeat last",
+    "double": "Double",
+    "undo": "Undo last",
+    "clear": "Clear",
+    "buyUp": "Buy Up",
+    "buyDown": "Buy Down",
+    "recent": "Last {n} rounds",
+    "streakUp": "{n} up in a row",
+    "streakDown": "{n} down in a row",
+    "loginHint": " to predict. New players get {n} coins",
+    "betFailed": "Could not place",
+    "repeatFailed": "Repeat failed",
+    "doubleFailed": "Double failed",
+    "cancelFailed": "Undo failed",
+    "bankerWins": "Up",
+    "playerWins": "Down",
+    "tieRound": "Flat",
+    "settledTitle": "Round #{n} · settled",
+    "nextRound": "Predict next round ({t})",
+    "nextRoundSoon": "Next round starting",
+    "refund": "Refund {n}",
+    "streak": "🔥 {n} correct in a row",
+    "toastWin": "Round #{no} correct +{n}",
+    "toastWinBonus": " (incl. streak bonus {n})",
+    "toastWinStreak": " · {n} in a row",
+    "toastVoid": "Round #{no} flat / void, {n} refunded",
+    "toastLose": "Round #{no} missed, -{n}",
+    "myHistory": "My history",
+    "dragon": "BTC {side} ×{n} in a row"
+  },
+  "me": {
+    "loginBlurb": "Log in to see your results and coin history.",
+    "stats": "Results",
+    "totalRounds": "Rounds",
+    "net": "Net return",
+    "wins": "Correct",
+    "curStreak": "Streak",
+    "history": "Prediction history",
+    "appearance": "Appearance",
+    "modeCasino": "Classic casino",
+    "modeCasinoDesc": "Banker / Player · chips · roadmap",
+    "modeFresh": "Clean Up/Down",
+    "modeFreshDesc": "Up / Down · quick amounts · light",
+    "ledgerType": {
+      "BET": "Stake",
+      "BET_CANCEL": "Stake undone",
+      "PAYOUT": "Return"
+    }
+  },
+  "rewards": {
+    "checkin": "Daily check-in",
+    "supply": "Timed supply",
+    "vipDaily": "VIP daily coins",
+    "relief": "Relief"
+  },
+  "shop": {
+    "firstCharge": "First purchase ×2",
+    "coinPacks": "Coin packs",
+    "vip": "VIP monthly",
+    "gems": "Gems"
+  },
+  "lb": {
+    "title": "Leaderboard",
+    "profit": "Net return",
+    "empty": "Nobody on the board yet — go predict a round!"
+  },
+  "history": {
+    "title": "Prediction history",
+    "table": "Market results",
+    "mine": "My predictions",
+    "loginHint": "Log in to see your prediction history.",
+    "stake": "Stake {n}",
+    "payout": "Return {n}",
+    "won": "Correct",
+    "lost": "Missed"
+  }
+}

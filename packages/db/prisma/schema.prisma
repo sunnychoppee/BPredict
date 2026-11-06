@@ -42,6 +42,8 @@ model User {
   nickname  String
   avatarUrl String?   @map("avatar_url")
   locale    String    @default("zh-Hant")
+  /// UI skin: "casino" (莊/閒, gold) or "fresh" (漲/跌, light). Mirrors the client's local choice.
+  uiMode    String    @default("casino") @map("ui_mode")
   isVip     Boolean   @default(false) @map("is_vip")
   vipExpiresAt DateTime? @map("vip_expires_at")
   frozenAt  DateTime? @map("frozen_at")

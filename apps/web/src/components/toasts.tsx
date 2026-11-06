@@ -3,11 +3,11 @@
 import { useTable } from "@/lib/table-store";
 
 const styles: Record<string, string> = {
-  win: "border-gold bg-felt-dark/95 text-gold-bright shadow-[0_0_24px_rgba(232,201,122,.35)]",
+  win: "border-gold bg-felt-dark/95 text-gold-bright shadow-glow",
   lose: "border-cream/30 bg-felt-dark/95 text-cream/80",
   void: "border-void bg-felt-dark/95 text-cream/80",
   info: "border-gold/50 bg-felt-dark/95 text-cream",
-  error: "border-banker bg-felt-dark/95 text-banker",
+  error: "border-neg bg-felt-dark/95 text-neg",
 };
 
 export function Toasts() {

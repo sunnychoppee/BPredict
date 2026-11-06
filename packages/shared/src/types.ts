@@ -28,6 +28,8 @@ export interface PublicUser {
   nickname: string;
   avatarUrl: string | null;
   locale: string;
+  /** "casino" | "fresh" — see UI_MODES. */
+  uiMode: string;
   isVip: boolean;
   vipExpiresAt: string | null;
   createdAt: string;

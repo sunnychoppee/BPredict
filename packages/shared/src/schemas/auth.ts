@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { LOCALES } from "../constants";
+import { LOCALES, UI_MODES } from "../constants";
 
 export const telegramAuthSchema = z.object({
   initData: z.string().min(1).max(8192),
@@ -25,8 +25,9 @@ export const updateMeSchema = z
   .object({
     nickname: z.string().trim().min(2).max(24).optional(),
     locale: z.enum(LOCALES).optional(),
+    uiMode: z.enum(UI_MODES).optional(),
   })
-  .refine((o) => o.nickname !== undefined || o.locale !== undefined, "nothing to update");
+  .refine((o) => o.nickname !== undefined || o.locale !== undefined || o.uiMode !== undefined, "nothing to update");
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
 
 export const devLoginSchema = z.object({
