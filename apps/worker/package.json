@@ -12,6 +12,7 @@
   "dependencies": {
     "@bpredict/db": "workspace:*",
     "@bpredict/shared": "workspace:*",
+    "@sentry/node": "^11.11.0",
     "dotenv": "^16.4.7",
     "ioredis": "^5.4.2",
     "ws": "^8.18.0",

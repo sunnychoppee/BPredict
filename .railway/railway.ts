@@ -66,6 +66,8 @@ export default defineRailway((ctx) => {
       STRIPE_WEBHOOK_SECRET: preserve(),
       // W5 admin console: comma-separated login emails allowed into /admin (empty = disabled).
       ADMIN_EMAILS: preserve(),
+      // W6 observability — optional; Sentry is a no-op without a DSN.
+      SENTRY_DSN: preserve(),
     },
   });
 
@@ -81,6 +83,7 @@ export default defineRailway((ctx) => {
       REDIS_URL: cache.env.REDIS_URL,
       WEB_URL: urls.web,
       JWT_SECRET: preserve(),
+      SENTRY_DSN: preserve(),
     },
   });
 
@@ -94,6 +97,7 @@ export default defineRailway((ctx) => {
       DATABASE_URL: db.env.DATABASE_URL,
       REDIS_URL: cache.env.REDIS_URL,
       WORKER_SCHEDULER: "1",
+      SENTRY_DSN: preserve(),
     },
   });
 
@@ -111,6 +115,7 @@ export default defineRailway((ctx) => {
       NEXT_PUBLIC_WS_URL: urls.ws,
       NEXT_PUBLIC_DEFAULT_LOCALE: "zh-Hant",
       NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: "BacPredict_bot",
+      NEXT_PUBLIC_SENTRY_DSN: preserve(),
     },
   });
 

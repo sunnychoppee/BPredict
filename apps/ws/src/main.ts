@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { resolve } from "node:path";
+import * as Sentry from "@sentry/node";
 import { createServer, type IncomingMessage } from "node:http";
 import { z } from "zod";
 import Redis from "ioredis";
@@ -9,6 +10,15 @@ import { TABLE_ID_BTC, redisKeys, type ClientEvent, type PriceTick, type RoundRe
 
 config({ path: resolve(process.cwd(), "../../.env") });
 config();
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.APP_ENV ?? "local",
+    release: process.env.RAILWAY_GIT_COMMIT_SHA ?? undefined,
+    tracesSampleRate: 0,
+  });
+}
 
 const env = z
   .object({

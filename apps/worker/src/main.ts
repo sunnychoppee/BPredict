@@ -1,3 +1,4 @@
+import "./instrument";
 import { env } from "./env";
 import { createPrismaClient } from "@bpredict/db";
 import { TABLE_ID_BTC } from "@bpredict/shared";
