@@ -38,6 +38,34 @@ export class TelegramStarsProvider implements PaymentProviderAdapter, OnModuleIn
     } catch (e) {
       this.log.warn(`setWebhook failed: ${(e as Error).message}`);
     }
+    await this.configureBotProfile();
+  }
+
+  /**
+   * Mini App packaging: menu button opens the web app, plus commands / descriptions shown in the chat.
+   * All idempotent; skipped when WEB_URL is not https (Telegram rejects http web_app URLs, e.g. localhost).
+   */
+  private async configureBotProfile() {
+    if (!env.WEB_URL.startsWith("https://")) return;
+    const steps: [string, Record<string, unknown>][] = [
+      ["setChatMenuButton", { menu_button: { type: "web_app", text: "開啟牌桌", web_app: { url: env.WEB_URL } } }],
+      ["setMyCommands", { commands: [{ command: "start", description: "開啟牌桌 · Open the table" }, { command: "help", description: "玩法說明 · How to play" }] }],
+      ["setMyShortDescription", { short_description: "莊閒 · BTC 5 分鐘漲跌預測。虛擬金幣，純娛樂。" }],
+      ["setMyDescription", { description: "百家樂節奏的 BTC 漲跌預測遊戲：每 5 分鐘一局，押「莊」看漲、押「閒」看跌。虛擬金幣不可提現，純娛樂。\n\nBaccarat-style BTC up/down prediction. Virtual coins only, no cash value." }],
+    ];
+    for (const [method, body] of steps) {
+      try {
+        await this.call(method, body);
+      } catch (e) {
+        this.log.warn(`${method} failed: ${(e as Error).message}`);
+      }
+    }
+    this.log.log("telegram bot profile configured");
+  }
+
+  /** Inline keyboard with a single button that opens the Mini App. */
+  openAppKeyboard(text = "🎴 開啟牌桌") {
+    return { inline_keyboard: [[{ text, web_app: { url: env.WEB_URL } }]] };
   }
 
   async createCheckout(ctx: CheckoutContext): Promise<CheckoutResult> {
@@ -61,8 +89,8 @@ export class TelegramStarsProvider implements PaymentProviderAdapter, OnModuleIn
     await this.call("answerPreCheckoutQuery", { pre_checkout_query_id: queryId, ok, ...(ok ? {} : { error_message: errorMessage ?? "訂單無效" }) });
   }
 
-  async sendMessage(chatId: number | string, text: string) {
-    await this.call("sendMessage", { chat_id: chatId, text });
+  async sendMessage(chatId: number | string, text: string, extra: Record<string, unknown> = {}) {
+    await this.call("sendMessage", { chat_id: chatId, text, ...extra });
   }
 
   private async call<T = unknown>(method: string, body: Record<string, unknown>): Promise<T> {

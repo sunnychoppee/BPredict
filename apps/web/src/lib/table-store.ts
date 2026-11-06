@@ -6,6 +6,7 @@ import { sound } from "@bpredict/ui";
 import { api } from "./api";
 import { useAuth } from "./auth-store";
 import { tr } from "./i18n";
+import { haptic } from "./telegram";
 
 export const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3002";
 const MAX_TICKS = 720;
@@ -226,12 +227,14 @@ export const useTable = create<TableState>()((set, get) => ({
           const f = (n: number) => n.toLocaleString("en-US");
           if (ev.won) {
             sound().play("win");
+            haptic.notify("success");
             get().pushToast("win", tr("table.toastWin", { no: ev.roundNo, n: f(ev.payout) }) + (ev.streakBonus ? tr("table.toastWinBonus", { n: f(ev.streakBonus) }) : "") + (ev.streak >= 3 ? tr("table.toastWinStreak", { n: ev.streak }) : ""));
           } else if (ev.payout === ev.stake) {
             sound().play("void");
             get().pushToast("void", tr("table.toastVoid", { no: ev.roundNo, n: f(ev.stake) }));
           } else {
             sound().play("lose");
+            haptic.notify("error");
             get().pushToast("lose", tr("table.toastLose", { no: ev.roundNo, n: f(ev.stake) }));
           }
           break;

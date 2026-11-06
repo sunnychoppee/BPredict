@@ -12,6 +12,7 @@ import { AnnounceTicker } from "@/components/announce-ticker";
 import { PriceChartClient } from "@/components/price-chart-client";
 import { ApiError } from "@/lib/api";
 import { cancelBets, placeBet, useTable } from "@/lib/table-store";
+import { haptic } from "@/lib/telegram";
 
 function useNow(intervalMs = 250) {
   const now = useTable((s) => s.now);
@@ -94,6 +95,7 @@ export function Table() {
     setBusy(side);
     try {
       sound().play("place");
+      haptic.impact("light");
       fly(amount, side);
       await placeBet(betting.id, side, amount);
       await t.refreshMyBets();

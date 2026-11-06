@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { fmt, fmtPx, sound } from "@bpredict/ui";
@@ -10,6 +10,7 @@ import { Toasts } from "@/components/toasts";
 import { useMe } from "@/components/use-me";
 import { useLocale } from "@/lib/i18n";
 import { useTable } from "@/lib/table-store";
+import { getTelegramWebApp, setClosingConfirmation } from "@/lib/telegram";
 
 const TABS = [
   { href: "/", key: "table", icon: "🎴" },
@@ -22,12 +23,37 @@ const TABS = [
 /** Shared chrome: top bar (logo · price · balances), PC nav links, mobile bottom tabs. */
 export function AppShell({ children, wide }: { children: ReactNode; wide?: boolean }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { me, loading } = useMe();
   const t = useTable();
   const tn = useTranslations("nav");
   const tc = useTranslations("common");
   const adoptLocale = useLocale((s) => s.adoptFromProfile);
   const [muted, setMuted] = useState(false);
+
+  // Telegram Mini App: native BackButton on sub-pages (fullscreen hides Telegram's own header).
+  useEffect(() => {
+    const wa = getTelegramWebApp();
+    if (!wa) return;
+    const back = () => (window.history.length > 1 ? router.back() : router.push("/"));
+    try {
+      if (pathname === "/") {
+        wa.BackButton.hide();
+        return;
+      }
+      wa.BackButton.show();
+      wa.BackButton.onClick(back);
+      return () => wa.BackButton.offClick(back);
+    } catch {
+      return;
+    }
+  }, [pathname, router]);
+
+  // Don't let a swipe-down close the app while the user has chips on the table.
+  const liveBets = t.myBets.length;
+  useEffect(() => {
+    setClosingConfirmation(liveBets > 0);
+  }, [liveBets]);
 
   useEffect(() => {
     setMuted(sound().muted);
@@ -56,7 +82,8 @@ export function AppShell({ children, wide }: { children: ReactNode; wide?: boole
       <TelegramAutoLogin />
       <Toasts />
 
-      <header className="sticky top-0 z-30 border-b border-gold/30 bg-felt-dark/95 backdrop-blur">
+      {/* `top` tracks the Telegram fullscreen inset so the bar never slides under Telegram's own controls. */}
+      <header className="sticky z-30 border-b border-gold/30 bg-felt-dark/95 backdrop-blur" style={{ top: "var(--safe-top)" }}>
         <div className={`mx-auto flex items-center justify-between gap-3 px-3 py-2 ${wide ? "max-w-6xl" : "max-w-md lg:max-w-6xl"}`}>
           <Link href="/" className="flex items-center gap-2">
             <span className="font-display text-lg tracking-wide text-gold">莊閒</span>

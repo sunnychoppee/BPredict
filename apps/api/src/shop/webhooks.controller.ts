@@ -200,9 +200,15 @@ export class WebhooksController {
       return { ok: true };
     }
 
-    // Plain messages (e.g. /start) — point the user to the Mini App.
-    if (update.message?.text?.startsWith("/start")) {
-      await this.stars.sendMessage(update.message.chat.id, `歡迎來到 BPredict！點擊左下角選單按鈕開啟牌桌。\n${env.WEB_URL}`).catch(() => undefined);
+    // Plain messages — /start and /help open the Mini App via a web_app button (works without BotFather /newapp).
+    const text = update.message?.text ?? "";
+    if (update.message && (text.startsWith("/start") || text.startsWith("/help"))) {
+      const kb = this.stars.openAppKeyboard();
+      const body = text.startsWith("/help")
+        ? "玩法：每 5 分鐘一局，鎖盤價之後 BTC 上漲為「莊」勝、下跌為「閒」勝、持平為「和」（退回本金）。\n金幣為虛擬貨幣，不可提現、無現金價值。每日簽到、連勝加成與排行榜獎勵都在牌桌內領取。"
+        : "歡迎來到 BPredict 莊閒！\n押「莊」看漲、押「閒」看跌，每 5 分鐘開一局。點下方按鈕開啟牌桌。";
+      const isHttps = env.WEB_URL.startsWith("https://");
+      await this.stars.sendMessage(update.message.chat.id, isHttps ? body : `${body}\n${env.WEB_URL}`, isHttps ? { reply_markup: kb } : {}).catch((e) => this.log.warn(`sendMessage: ${e.message}`));
     }
     return { ok: true };
   }
