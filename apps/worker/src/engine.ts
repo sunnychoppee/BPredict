@@ -78,12 +78,13 @@ export class RoundEngine {
         orderBy: { roundNo: "asc" },
       });
 
+      // Order matters: locking is time-critical (it fixes the lock price), settlement is O(bets) and can take
+      // seconds under load (W6 load test: 22k bets / 300 winners → 3.5 s). Lock and open first, settle last, so a
+      // heavy settlement never delays the next round's lock price.
       let changed = false;
-      for (const r of open) {
-        if (r.status === "SCHEDULED" && r.betStartAt.getTime() <= now) changed = (await this.promote(r)) || changed;
-        else if (r.status === "BETTING" && r.lockAt.getTime() <= now) changed = (await this.lock(r, now)) || changed;
-        else if (r.status === "LOCKED" && r.closeAt.getTime() <= now) changed = (await this.settle(r, now)) || changed;
-      }
+      for (const r of open) if (r.status === "BETTING" && r.lockAt.getTime() <= now) changed = (await this.lock(r, now)) || changed;
+      for (const r of open) if (r.status === "SCHEDULED" && r.betStartAt.getTime() <= now) changed = (await this.promote(r)) || changed;
+      for (const r of open) if (r.status === "LOCKED" && r.closeAt.getTime() <= now) changed = (await this.settle(r, now)) || changed;
       if (changed || now % 10_000 < 1000) await this.publishState();
     } catch (e) {
       log.error("engine", "tick failed", e);
@@ -206,8 +207,11 @@ export class RoundEngine {
               meta: { base: p.base, streakBonus: p.streakBonus, stake: p.stake },
             });
           }
-          await tx.roundPayout.create({
-            data: { roundId: r.id, userId: p.userId, side: p.side, stake: BigInt(p.stake), payout: BigInt(p.base), streakBonus: BigInt(p.streakBonus) },
+        }
+        if (res.payouts.length) {
+          await tx.roundPayout.createMany({
+            data: res.payouts.map((p) => ({ roundId: r.id, userId: p.userId, side: p.side, stake: BigInt(p.stake), payout: BigInt(p.base), streakBonus: BigInt(p.streakBonus) })),
+            skipDuplicates: true,
           });
         }
 
